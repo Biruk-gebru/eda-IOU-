@@ -1,0 +1,109 @@
+# -------------------------
+# Miscellaneous
+# -------------------------
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+requiemnest.md
+
+# -------------------------
+# IntelliJ / Android Studio
+# -------------------------
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# -------------------------
+# VS Code
+# (Uncomment if you don't want to commit your editor settings)
+#.vscode/
+
+# -------------------------
+# Flutter / Dart / Pub
+# -------------------------
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+pubspec.lock
+
+# Build outputs
+/build/
+android/app/debug
+android/app/profile
+android/app/release
+
+# -------------------------
+# Generated Files
+# -------------------------
+**/generated/
+generated_plugin_registrant.dart
+*.g.dart
+*.freezed.dart
+*.config.dart
+
+# -------------------------
+# Android Specific
+# -------------------------
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/*.keystore
+android/app/*.jks
+android/app/key.jks
+android/app/google-services.json
+
+# -------------------------
+# iOS Specific
+# -------------------------
+ios/Pods/
+ios/Podfile.lock
+ios/.symlinks/
+ios/Flutter/Flutter.podspec
+ios/Flutter/.last_build_id
+ios/Runner/GeneratedPluginRegistrant.*
+ios/Runner/GoogleService-Info.plist
+*.xcworkspace/
+*.xcuserstate
+*.xcuserdatad/
+DerivedData/
+
+# -------------------------
+# Obfuscation / Symbolication
+# -------------------------
+app.*.symbols
+app.*.map.json
+
+# -------------------------
+# Coverage
+# -------------------------
+coverage/
+
+# -------------------------
+# Environment / Secrets
+# -------------------------
+.env
+*.env
+secrets.json
+
+
+# Desktop folders (ignore if not targeting)
+windows/
+linux/
+macos/
+
