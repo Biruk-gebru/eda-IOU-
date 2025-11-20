@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'home/home_screen.dart';
+import 'groups/groups_screen.dart';
+import 'personal/personal_screen.dart';
+import 'settings/settings_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -13,9 +16,9 @@ class _MainShellState extends State<MainShell> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const Center(child: Text('Groups Screen')),
-    const Center(child: Text('Wallet Screen')),
-    const Center(child: Text('Settings Screen')),
+    const GroupsScreen(),
+    const PersonalScreen(),
+    const SettingsScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -32,7 +35,7 @@ class _MainShellState extends State<MainShell> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -44,7 +47,9 @@ class _MainShellState extends State<MainShell> {
           backgroundColor: Colors.white,
           selectedIndex: _selectedIndex,
           onDestinationSelected: _onItemTapped,
-          indicatorColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          indicatorColor: Theme.of(
+            context,
+          ).colorScheme.primary.withValues(alpha: 0.1),
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
@@ -58,8 +63,8 @@ class _MainShellState extends State<MainShell> {
             ),
             NavigationDestination(
               icon: Icon(Icons.account_balance_wallet_outlined),
-              selectedIcon: Icon(Icons.account_balance_wallet_rounded),
-              label: 'Wallet',
+              selectedIcon: Icon(Icons.space_dashboard_rounded),
+              label: 'Personal',
             ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
