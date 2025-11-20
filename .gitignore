@@ -100,6 +100,7 @@ coverage/
 .env
 *.env
 secrets.json
+lib/src/core/constants/supabase_config.dart
 
 
 # Desktop folders (ignore if not targeting)

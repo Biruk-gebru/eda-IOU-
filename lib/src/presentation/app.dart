@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
           seedColor: const Color(0xFF00BFA5), // Teal accent
           primary: const Color(0xFF00BFA5),
           secondary: const Color(0xFF6C63FF), // Purple accent
-          background: Colors.grey[50],
+          surface: Colors.grey[50],
         ),
         useMaterial3: true,
         fontFamily: 'Roboto', // Default, but explicit is good

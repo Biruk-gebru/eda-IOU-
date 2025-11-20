@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
+
+import '../groups/groups_screen.dart';
+import '../payments/create_payment_request_screen.dart';
+import '../transactions/create_transaction_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,6 +20,8 @@ class HomeScreen extends StatelessWidget {
               _buildHeader(),
               const SizedBox(height: 24),
               _buildBalanceCard(context),
+              const SizedBox(height: 24),
+              _buildQuickActions(context),
               const SizedBox(height: 32),
               _buildSectionTitle('Recent Transactions'),
               const SizedBox(height: 16),
@@ -60,7 +65,7 @@ class HomeScreen extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -92,7 +97,7 @@ class HomeScreen extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -109,7 +114,7 @@ class HomeScreen extends StatelessWidget {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -121,7 +126,7 @@ class HomeScreen extends StatelessWidget {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -138,15 +143,12 @@ class HomeScreen extends StatelessWidget {
                     Text(
                       'Total Balance',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const Icon(
-                      Icons.more_horiz,
-                      color: Colors.white,
-                    ),
+                    const Icon(Icons.more_horiz, color: Colors.white),
                   ],
                 ),
                 Column(
@@ -168,7 +170,7 @@ class HomeScreen extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -213,10 +215,7 @@ class HomeScreen extends StatelessWidget {
             color: Colors.black87,
           ),
         ),
-        TextButton(
-          onPressed: () {},
-          child: const Text('See All'),
-        ),
+        TextButton(onPressed: () {}, child: const Text('See All')),
       ],
     );
   }
@@ -242,7 +241,13 @@ class HomeScreen extends StatelessWidget {
       Icons.fitness_center_outlined,
     ];
     final titles = ['Grocery', 'Dinner', 'Uber', 'Cinema', 'Gym'];
-    final amounts = ['-\$45.00', '-\$82.50', '-\$12.00', '-\$24.00', '-\$50.00'];
+    final amounts = [
+      '-\$45.00',
+      '-\$82.50',
+      '-\$12.00',
+      '-\$24.00',
+      '-\$50.00',
+    ];
     final colors = [
       Colors.orange,
       Colors.red,
@@ -258,7 +263,7 @@ class HomeScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -269,13 +274,10 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colors[index].withOpacity(0.1),
+              color: colors[index].withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icons[index],
-              color: colors[index],
-            ),
+            child: Icon(icons[index], color: colors[index]),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -293,10 +295,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Today, 10:00 AM',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -310,6 +309,103 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    final actions = [
+      _QuickActionData(
+        icon: Icons.add_circle_outline,
+        label: 'New transaction',
+        onTap: () => _open(context, const CreateTransactionScreen()),
+      ),
+      _QuickActionData(
+        icon: Icons.request_page_outlined,
+        label: 'Request payment',
+        onTap: () => _open(context, const CreatePaymentRequestScreen()),
+      ),
+      _QuickActionData(
+        icon: Icons.group_add_outlined,
+        label: 'Manage groups',
+        onTap: () => _open(context, const GroupsScreen()),
+      ),
+    ];
+
+    final children = <Widget>[];
+    for (var i = 0; i < actions.length; i++) {
+      children.add(Expanded(child: _QuickActionCard(data: actions[i])));
+      if (i != actions.length - 1) {
+        children.add(const SizedBox(width: 12));
+      }
+    }
+
+    return Row(children: children);
+  }
+
+  void _open(BuildContext context, Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+}
+
+class _QuickActionData {
+  const _QuickActionData({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+}
+
+class _QuickActionCard extends StatelessWidget {
+  const _QuickActionCard({required this.data});
+
+  final _QuickActionData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: data.onTap,
+      child: Ink(
+        height: 110,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(data.icon, color: colorScheme.primary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              data.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
