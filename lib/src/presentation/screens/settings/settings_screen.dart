@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/user_providers.dart';
 import '../setup/bank_info_screen.dart';
 
@@ -107,6 +108,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 24),
 
+        // Appearance
+        _label(typo, colors, 'Appearance'),
+        const SizedBox(height: 8),
+        _buildThemeSelector(ref, colors, typo),
+        const SizedBox(height: 24),
+
         // Notifications
         _label(typo, colors, 'Notifications'),
         const SizedBox(height: 8),
@@ -187,6 +194,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           prefix: const Icon(FIcons.logOut),
           child: const Text('Sign out'),
         ),
+      ],
+    );
+  }
+
+  Widget _buildThemeSelector(WidgetRef ref, FColors colors, FTypography typo) {
+    final current = ref.watch(themeModeProvider);
+
+    Widget chip(AppThemeMode mode, String label, IconData icon) {
+      final selected = current == mode;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => ref.read(themeModeProvider.notifier).state = mode,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: selected
+                  ? colors.primary.withValues(alpha: 0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: selected ? colors.primary : colors.border,
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(icon,
+                    size: 20,
+                    color: selected ? colors.primary : colors.mutedForeground),
+                const SizedBox(height: 4),
+                Text(label,
+                    style: typo.xs.copyWith(
+                        color: selected
+                            ? colors.primary
+                            : colors.mutedForeground,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.normal)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        chip(AppThemeMode.system, 'System', FIcons.monitor),
+        const SizedBox(width: 8),
+        chip(AppThemeMode.light, 'Light', FIcons.sun),
+        const SizedBox(width: 8),
+        chip(AppThemeMode.dark, 'Dark', FIcons.moon),
       ],
     );
   }

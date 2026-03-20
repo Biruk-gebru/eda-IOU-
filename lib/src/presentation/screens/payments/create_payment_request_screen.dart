@@ -124,12 +124,12 @@ class _CreatePaymentRequestScreenState
               ),
             ),
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _methodChip('Bank transfer'),
-                const SizedBox(width: 8),
                 _methodChip('Mobile money'),
-                const SizedBox(width: 8),
                 _methodChip('Cash'),
               ],
             ),

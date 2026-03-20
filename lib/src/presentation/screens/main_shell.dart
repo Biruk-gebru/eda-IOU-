@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'home/home_screen.dart';
 import 'groups/groups_screen.dart';
 import 'personal/personal_screen.dart';
+import 'stats/stats_screen.dart';
 import 'settings/settings_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -20,6 +21,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     GroupsScreen(),
     PersonalScreen(),
+    StatsScreen(),
     SettingsScreen(),
   ];
 
@@ -42,6 +44,10 @@ class _MainShellState extends State<MainShell> {
             FBottomNavigationBarItem(
               icon: Icon(FIcons.wallet),
               label: Text('Personal'),
+            ),
+            FBottomNavigationBarItem(
+              icon: Icon(FIcons.chartPie),
+              label: Text('Stats'),
             ),
             FBottomNavigationBarItem(
               icon: Icon(FIcons.settings),
