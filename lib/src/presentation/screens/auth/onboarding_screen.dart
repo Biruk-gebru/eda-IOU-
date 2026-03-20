@@ -1,118 +1,111 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 
-class OnboardingScreen extends StatefulWidget {
+import '../../../domain/entities/user.dart' as domain;
+import '../../providers/auth_providers.dart';
+import '../../providers/user_providers.dart';
+
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _nameController = TextEditingController();
-  final _paymentDetailsController = TextEditingController();
-  String _selectedMethod = 'Bank Transfer';
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _paymentDetailsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your display name')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final repository = ref.read(userRepositoryProvider);
+      await repository.updateUser(
+        domain.User(id: userId, displayName: name),
+      );
+
+      ref.invalidate(authSessionProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile saved')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Complete your profile')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Let others know how to settle with you.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: Colors.grey[700]),
-                ),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display name',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  validator: (value) =>
-                      value == null || value.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedMethod,
-                  decoration: const InputDecoration(
-                    labelText: 'Preferred payment method',
-                    prefixIcon: Icon(Icons.payments_outlined),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Bank Transfer',
-                      child: Text('Bank Transfer'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Mobile Money',
-                      child: Text('Mobile Money'),
-                    ),
-                    DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedMethod = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _paymentDetailsController,
-                  decoration: InputDecoration(
-                    labelText: 'Payment details',
-                    hintText: _selectedMethod == 'Bank Transfer'
-                        ? 'Bank name, account number'
-                        : 'Phone number / instructions',
-                    prefixIcon: const Icon(Icons.description_outlined),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SwitchListTile(
-                  value: true,
-                  onChanged: (_) {},
-                  title: const Text('Enable notifications'),
-                  subtitle: const Text(
-                    'Stay updated with approvals and payments',
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _submit,
-                    child: const Text('Save and continue'),
-                  ),
-                ),
-              ],
+    return FScaffold(
+      header: const FHeader(title: Text('Complete Your Profile')),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Let others know who you are.',
+              style: context.theme.typography.sm.copyWith(
+                color: context.theme.colors.mutedForeground,
+              ),
             ),
-          ),
+            const SizedBox(height: 24),
+            FTextField(
+              control: FTextFieldControl.managed(
+                controller: _nameController,
+              ),
+              label: const Text('Display Name'),
+              hint: 'Enter your name',
+              enabled: !_isSubmitting,
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 32),
+            FButton(
+              onPress: _isSubmitting ? null : _submit,
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Save and Continue'),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  void _submit() {
-    if (_formKey.currentState?.validate() ?? false) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Profile saved (demo)')));
-    }
   }
 }
