@@ -7,175 +7,158 @@ import '../../../domain/entities/transaction.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
-import '../groups/groups_screen.dart';
 import '../payments/create_payment_request_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  static final _currencyFormat = NumberFormat.currency(symbol: 'ETB ');
+  static final _fmt = NumberFormat.currency(symbol: 'ETB ');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final colors = theme.colors;
-    final typography = theme.typography;
+    final typo = theme.typography;
 
     final userAsync = ref.watch(currentUserProvider);
-    final userName =
-        userAsync.whenOrNull(data: (user) => user?.displayName) ?? 'there';
+    final name =
+        userAsync.whenOrNull(data: (u) => u?.displayName) ?? 'there';
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(colors, typography, userName),
-              const SizedBox(height: 24),
-              _buildBalanceCard(ref, colors, typography),
-              const SizedBox(height: 24),
-              _buildQuickActions(context),
-              const SizedBox(height: 32),
-              _buildSectionTitle(colors, typography, 'Recent Transactions'),
-              const SizedBox(height: 16),
-              _buildTransactionList(context, ref, colors, typography),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(
-    FColors colors,
-    FTypography typography,
-    String userName,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
+        // Header
         Text(
           'Welcome back,',
-          style: typography.sm.copyWith(
-            color: colors.mutedForeground,
-            fontWeight: FontWeight.w500,
-          ),
+          style: typo.sm.copyWith(color: colors.mutedForeground),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
-          userName,
-          style: typography.xl2.copyWith(
+          name,
+          style: typo.lg.copyWith(
             color: colors.foreground,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
           ),
         ),
+
+        const SizedBox(height: 20),
+
+        // Balance card
+        _balanceCard(ref, colors, typo),
+
+        const SizedBox(height: 16),
+
+        // Quick actions — two rows to avoid overflow
+        Row(
+          children: [
+            Expanded(
+              child: FButton(
+                onPress: () => _open(context, const CreateTransactionScreen()),
+                prefix: const Icon(FIcons.plus),
+                child: const Text('New'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FButton(
+                variant: FButtonVariant.outline,
+                onPress: () =>
+                    _open(context, const CreatePaymentRequestScreen()),
+                prefix: const Icon(FIcons.send),
+                child: const Text('Request'),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 24),
+
+        // Recent transactions
+        Text(
+          'Recent transactions',
+          style: typo.md.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colors.foreground,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _transactionList(context, ref, colors, typo),
       ],
     );
   }
 
-  Widget _buildBalanceCard(
-    WidgetRef ref,
-    FColors colors,
-    FTypography typography,
-  ) {
-    final balancesAsync = ref.watch(balancesProvider);
+  Widget _balanceCard(WidgetRef ref, FColors colors, FTypography typo) {
+    final async = ref.watch(balancesProvider);
 
-    return balancesAsync.when(
+    return async.when(
       loading: () => FCard.raw(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Center(
-            child: CircularProgressIndicator(color: colors.primary),
-          ),
+        child: const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator.adaptive()),
         ),
       ),
-      error: (err, _) => FCard.raw(
+      error: (_, __) => FCard.raw(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(20),
           child: Text(
-            'Error loading balances',
-            style: typography.sm.copyWith(color: colors.destructive),
+            'Could not load balances',
+            style: typo.sm.copyWith(color: colors.destructive),
           ),
         ),
       ),
       data: (balances) {
-        double totalOwed = 0;
-        double totalOwing = 0;
+        double owe = 0, owed = 0;
         for (final b in balances) {
           if (b.netAmount > 0) {
-            totalOwed += b.netAmount;
+            owed += b.netAmount;
           } else {
-            totalOwing += b.netAmount.abs();
+            owe += b.netAmount.abs();
           }
         }
 
         return FCard.raw(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(20),
+            child: Row(
               children: [
-                Text(
-                  'Balance Overview',
-                  style: typography.lg.copyWith(
-                    color: colors.foreground,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'You owe',
-                            style: typography.xs.copyWith(
-                              color: colors.mutedForeground,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _currencyFormat.format(totalOwing),
-                            style: typography.xl.copyWith(
-                              color: colors.destructive,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(width: 1, height: 40, color: colors.border),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'You are owed',
-                              style: typography.xs.copyWith(
-                                color: colors.mutedForeground,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _currencyFormat.format(totalOwed),
-                              style: typography.xl.copyWith(
-                                color: colors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('You owe',
+                          style: typo.xs
+                              .copyWith(color: colors.mutedForeground)),
+                      const SizedBox(height: 4),
+                      Text(
+                        _fmt.format(owe),
+                        style: typo.lg.copyWith(
+                          color: colors.destructive,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 36, color: colors.border),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('You are owed',
+                          style: typo.xs
+                              .copyWith(color: colors.mutedForeground)),
+                      const SizedBox(height: 4),
+                      Text(
+                        _fmt.format(owed),
+                        style: typo.lg.copyWith(
+                          color: colors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -185,131 +168,63 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: FButton(
-            variant: FButtonVariant.primary,
-            onPress: () => _open(context, const CreateTransactionScreen()),
-            prefix: Icon(FIcons.plus),
-            child: const Text('New'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: FButton(
-            variant: FButtonVariant.outline,
-            onPress: () => _open(context, const CreatePaymentRequestScreen()),
-            prefix: Icon(FIcons.send),
-            child: const Text('Request'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: FButton(
-            variant: FButtonVariant.secondary,
-            onPress: () => _open(context, const GroupsScreen()),
-            prefix: Icon(FIcons.users),
-            child: const Text('Groups'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(
-    FColors colors,
-    FTypography typography,
-    String title,
-  ) {
-    return Text(
-      title,
-      style: typography.lg.copyWith(
-        fontWeight: FontWeight.bold,
-        color: colors.foreground,
-      ),
-    );
-  }
-
-  Widget _buildTransactionList(
+  Widget _transactionList(
     BuildContext context,
     WidgetRef ref,
     FColors colors,
-    FTypography typography,
+    FTypography typo,
   ) {
-    final transactionsAsync = ref.watch(transactionListProvider);
+    final async = ref.watch(transactionListProvider);
 
-    return transactionsAsync.when(
-      loading: () => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: CircularProgressIndicator(color: colors.primary),
-        ),
+    return async.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator.adaptive()),
       ),
-      error: (err, stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'Error: $err',
-            style: typography.sm.copyWith(color: colors.destructive),
-          ),
-        ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('Error: $e',
+            style: typo.sm.copyWith(color: colors.destructive)),
       ),
-      data: (transactions) {
-        if (transactions.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
+      data: (txs) {
+        if (txs.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            child: Center(
               child: Text(
                 'No transactions yet',
-                style: typography.sm.copyWith(color: colors.mutedForeground),
+                style: typo.sm.copyWith(color: colors.mutedForeground),
               ),
             ),
           );
         }
 
-        return Column(
+        return FTileGroup(
           children: [
-            for (final transaction in transactions)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _buildTransactionTile(
-                  context,
-                  transaction,
-                  colors,
-                  typography,
-                ),
-              ),
+            for (final tx in txs) _txTile(tx, colors, typo),
           ],
         );
       },
     );
   }
 
-  Widget _buildTransactionTile(
-    BuildContext context,
-    Transaction transaction,
-    FColors colors,
-    FTypography typography,
-  ) {
-    final dateStr = transaction.createdAt != null
-        ? DateFormat('MMM d, y').format(transaction.createdAt!)
-        : '-';
+  FTile _txTile(Transaction tx, FColors colors, FTypography typo) {
+    final date = tx.createdAt != null
+        ? DateFormat('MMM d').format(tx.createdAt!)
+        : '';
 
     return FTile(
-      title: Text(transaction.description ?? 'Transaction'),
-      subtitle: Text(dateStr),
-      prefix: Icon(FIcons.receipt),
+      title: Text(tx.description ?? 'Transaction'),
+      subtitle: Text(date),
+      prefix: const Icon(FIcons.receipt),
       details: Text(
-        _currencyFormat.format(transaction.totalAmount),
-        style: typography.sm.copyWith(
+        _fmt.format(tx.totalAmount),
+        style: typo.sm.copyWith(
           fontWeight: FontWeight.w600,
           color: colors.foreground,
         ),
       ),
-      suffix: Icon(FIcons.arrowRight),
-      onPress: () {},
+      suffix: const Icon(FIcons.chevronRight),
     );
   }
 

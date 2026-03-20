@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
@@ -9,187 +8,156 @@ import '../../providers/balance_providers.dart';
 import '../../providers/user_providers.dart';
 import '../payments/create_payment_request_screen.dart';
 
-final _currencyFormat = NumberFormat.currency(symbol: 'ETB ');
-
 class PersonalScreen extends ConsumerWidget {
   const PersonalScreen({super.key});
 
+  static final _fmt = NumberFormat.currency(symbol: 'ETB ');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = context.theme;
+    final colors = theme.colors;
+    final typo = theme.typography;
     final balancesAsync = ref.watch(balancesProvider);
-    final currentUserAsync = ref.watch(currentUserProvider);
     final balanceRepo = ref.watch(balanceRepositoryProvider);
+    final userAsync = ref.watch(currentUserProvider);
+    final userId = userAsync.whenOrNull(data: (u) => u?.id);
 
     return balancesAsync.when(
-      loading: () => const Center(child: FProgress()),
-      error: (error, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                'Failed to load balances',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$error',
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+      loading: () =>
+          const Center(child: CircularProgressIndicator.adaptive()),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
+            const SizedBox(height: 12),
+            Text('Failed to load balances',
+                style: typo.sm.copyWith(color: colors.destructive)),
+          ],
         ),
       ),
       data: (balances) {
-        final totalOwed = balanceRepo.totalOwed(balances);
-        final totalOwedToMe = balanceRepo.totalOwedToMe(balances);
-
-        final currentUserId = currentUserAsync.whenOrNull(
-          data: (user) => user?.id,
-        );
+        final owe = balanceRepo.totalOwed(balances);
+        final owed = balanceRepo.totalOwedToMe(balances);
 
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
-            _buildSummaryCard(context, totalOwed, totalOwedToMe),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 12),
-              child: Text(
-                'Net balances',
-                style: Theme.of(context).textTheme.titleMedium,
+            // Header
+            Text('Personal',
+                style: typo.lg.copyWith(
+                    fontWeight: FontWeight.w600, color: colors.foreground)),
+            const SizedBox(height: 16),
+
+            // Summary card
+            FCard.raw(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('You owe',
+                              style: typo.xs
+                                  .copyWith(color: colors.mutedForeground)),
+                          const SizedBox(height: 4),
+                          Text(_fmt.format(owe),
+                              style: typo.lg.copyWith(
+                                  color: colors.destructive,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 36, color: colors.border),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('You are owed',
+                              style: typo.xs
+                                  .copyWith(color: colors.mutedForeground)),
+                          const SizedBox(height: 4),
+                          Text(_fmt.format(owed),
+                              style: typo.lg.copyWith(
+                                  color: colors.primary,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+
+            const SizedBox(height: 24),
+
+            // Net balances header
+            Text('Net balances',
+                style: typo.md.copyWith(
+                    fontWeight: FontWeight.w600, color: colors.foreground)),
+            const SizedBox(height: 12),
+
             if (balances.isEmpty)
-              FCard(
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Text('No balances yet. Start splitting expenses!'),
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text('No balances yet',
+                      style: typo.sm
+                          .copyWith(color: colors.mutedForeground)),
                 ),
               )
             else
-              ...balances.map(
-                (balance) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildBalanceTile(context, balance, currentUserId),
-                ),
+              FTileGroup(
+                children: [
+                  for (final b in balances)
+                    _balanceTile(b, userId, colors, typo),
+                ],
               ),
+
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _openRequestPayment(context),
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Settle up'),
+            FButton(
+              variant: FButtonVariant.outline,
+              onPress: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const CreatePaymentRequestScreen())),
+              prefix: const Icon(FIcons.handCoins),
+              child: const Text('Settle up'),
             ),
-            const SizedBox(height: 100),
           ],
         );
       },
     );
   }
 
-  Widget _buildSummaryCard(
-    BuildContext context,
-    double totalOwed,
-    double totalOwedToMe,
+  FTile _balanceTile(
+    NetBalance b,
+    String? userId,
+    FColors colors,
+    FTypography typo,
   ) {
-    return FCard(
-      title: const Text('Balance Summary'),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text('You owe'),
-                      const SizedBox(width: 8),
-                      FBadge(
-                        variant: FBadgeVariant.destructive,
-                        child: Text(_currencyFormat.format(totalOwed)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Text('You are owed'),
-                      const SizedBox(width: 8),
-                      FBadge(
-                        variant: FBadgeVariant.primary,
-                        child: Text(_currencyFormat.format(totalOwedToMe)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBalanceTile(
-    BuildContext context,
-    NetBalance balance,
-    String? currentUserId,
-  ) {
-    // Determine if the current user owes or is owed.
-    // If user is userA and netAmount > 0, userA owes userB.
-    // If user is userB and netAmount < 0, userB owes userA.
-    final bool currentUserOwes;
-    final String otherUserId;
-    final double displayAmount;
-
-    if (currentUserId == balance.userA) {
-      otherUserId = balance.userB;
-      currentUserOwes = balance.netAmount > 0;
-      displayAmount = balance.netAmount.abs();
+    final bool owes;
+    final String otherId;
+    if (userId == b.userA) {
+      otherId = b.userB;
+      owes = b.netAmount > 0;
     } else {
-      otherUserId = balance.userA;
-      currentUserOwes = balance.netAmount < 0;
-      displayAmount = balance.netAmount.abs();
+      otherId = b.userA;
+      owes = b.netAmount < 0;
     }
-
-    final color = currentUserOwes ? Colors.red.shade700 : Colors.green.shade700;
-    final label = currentUserOwes ? 'You owe' : 'Owes you';
+    final amount = b.netAmount.abs();
+    final color = owes ? colors.destructive : colors.primary;
+    final label = owes ? 'You owe' : 'Owes you';
 
     return FTile(
-      title: Text(
-        'User ${otherUserId.substring(0, otherUserId.length.clamp(0, 8))}',
-      ),
+      title: Text('User ${otherId.substring(0, otherId.length.clamp(0, 8))}'),
       subtitle: Text(label),
-      prefix: CircleAvatar(
-        radius: 18,
-        backgroundColor: color.withValues(alpha: 0.15),
-        child: Icon(
-          currentUserOwes ? Icons.call_made : Icons.call_received,
-          color: color,
-          size: 20,
-        ),
-      ),
       details: Text(
-        _currencyFormat.format(displayAmount),
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
+        _fmt.format(amount),
+        style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: color),
       ),
-    );
-  }
-
-  void _openRequestPayment(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CreatePaymentRequestScreen()),
     );
   }
 }
