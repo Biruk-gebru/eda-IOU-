@@ -2,7 +2,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'payment_request.freezed.dart';
 
-
 @freezed
 class PaymentRequest with _$PaymentRequest {
   const factory PaymentRequest({

@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SettingsScreen extends StatelessWidget {
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../controllers/auth_controller.dart';
+import '../../providers/auth_providers.dart';
+import '../setup/bank_info_screen.dart';
+
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionAsync = ref.watch(authSessionProvider);
+    final client = ref.watch(supabaseClientProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          _buildProfileCard(context),
+          _buildProfileCard(context, sessionAsync.valueOrNull, client),
           const SizedBox(height: 24),
           Text('Preferences', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
@@ -54,7 +64,14 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await ref.read(authControllerProvider).signOut();
+              } on AuthControllerException catch (e) {
+                messenger.showSnackBar(SnackBar(content: Text(e.message)));
+              }
+            },
             icon: const Icon(Icons.logout),
             label: const Text('Sign out'),
           ),
@@ -63,34 +80,90 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileCard(BuildContext context) {
+  Widget _buildProfileCard(BuildContext context, Session? session, SupabaseClient client) {
+    final email = session?.user.email ?? 'you@example.com';
+    final name =
+        session?.user.userMetadata?['full_name'] as String? ?? 'Your profile';
+    final uid = session?.user.id;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         color: Theme.of(context).colorScheme.primaryContainer,
       ),
-      child: Row(
+      child: Column(
         children: [
-          const CircleAvatar(radius: 32, child: Text('K')),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Karanos Abebe',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 32,
+                child: Text(
+                  name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
                 ),
-                SizedBox(height: 4),
-                Text('karanos@example.com'),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(email),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined), 
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const BankInfoScreen()),
+                ),
+              ),
+            ],
           ),
-          IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () {}),
+          if (uid != null) ...[
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            StreamBuilder<Map<String, dynamic>?>(
+              stream: client.from('profiles').stream(primaryKey: ['id']).eq('id', uid).map((event) => event.isEmpty ? null : event.first),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) return Text('Error: ${snapshot.error}');
+                if (!snapshot.hasData) return const SizedBox.shrink(); // Loading or no data
+                final data = snapshot.data;
+                if (data == null) return const Text('No banking info set');
+                
+                final bank = data['bank_name'] as String?;
+                final account = data['account_number'] as String?;
+                
+                if (bank == null || account == null) return const Text('No banking info set');
+
+                return Row(
+                  children: [
+                     const Icon(Icons.account_balance, size: 20, color: Colors.grey),
+                     const SizedBox(width: 8),
+                     Expanded(
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                            Text(bank, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            Text(account, style: const TextStyle(fontSize: 12)),
+                         ],
+                       ),
+                     )
+                  ],
+                );
+              }
+            )
+          ]
         ],
       ),
     );
   }
 }
-

@@ -2,7 +2,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'transaction_participant.freezed.dart';
 
-
 @freezed
 class TransactionParticipant with _$TransactionParticipant {
   const factory TransactionParticipant({

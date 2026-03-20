@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
-class TransactionDetailScreen extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_providers.dart';
+
+class TransactionDetailScreen extends ConsumerWidget {
   const TransactionDetailScreen({super.key, required this.transactionId});
 
   final String transactionId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final steps = [
       _TimelineStep(
         title: 'Created by You',
@@ -42,6 +45,21 @@ class TransactionDetailScreen extends StatelessWidget {
         children: [
           _buildHeaderCard(context),
           const SizedBox(height: 24),
+          if (true) ...[ // Condition: User is Payer and Status is Approved/Pending Payment
+             SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _showPaymentInfo(context, ref),
+                icon: const Icon(Icons.payment),
+                label: const Text('View Payment Details'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  padding: const EdgeInsets.all(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           Text('Timeline', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           ...steps.map(
@@ -59,13 +77,13 @@ class TransactionDetailScreen extends StatelessWidget {
           _ParticipantTile(name: 'Sarah', amount: 340, status: 'Approved'),
           const SizedBox(height: 24),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminder sent to pending approvers (demo)'))),
             icon: const Icon(Icons.notifications_active_outlined),
             label: const Text('Remind pending approvers'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Timeout extended by 24h (demo)'))),
             icon: const Icon(Icons.schedule_outlined),
             label: const Text('Extend timeout'),
           ),
@@ -73,6 +91,77 @@ class TransactionDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showPaymentInfo(BuildContext context, WidgetRef ref) async {
+    try {
+      final client = ref.read(supabaseClientProvider);
+      
+      // 1. Get Transaction to find creator/payee (Mocking ID for now or using passed ID)
+      // final transaction = await client.from('transactions').select().eq('id', transactionId).single();
+      // final payeeId = transaction['creator_id']; 
+      
+      // For demo, assume current user is NOT the payee, so we fetch the *other* person's info.
+      // Let's assume we hardcode a user ID or fetch current user's *payee* for the demo context.
+      // In real app, we use `transaction.creator_id` or `transaction.payer_id`.
+      
+      // Fetching profile of the Payee
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return;
+      
+      // Demo: Fetching *my own* info just to test the integration because we don't have other users easily
+      // In reality: Fetch `transaction.creator_id`
+      
+      final data = await client
+          .from('profiles')
+          .select('bank_name, account_number, account_name')
+          .eq('id', userId) 
+          .maybeSingle();
+
+      if (context.mounted) {
+        if (data == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No banking info found for payee.')),
+          );
+          return;
+        }
+
+        showModalBottomSheet(
+          context: context,
+          builder: (context) => Container(
+            padding: const EdgeInsets.all(24),
+            width: double.infinity,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Payment Information', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                _PaymentDetailRow(label: 'Bank Name', value: data['bank_name'] ?? 'N/A'),
+                const Divider(),
+                _PaymentDetailRow(label: 'Account Name', value: data['account_name'] ?? 'N/A'),
+                const Divider(),
+                _PaymentDetailRow(label: 'Account Number', value: data['account_number'] ?? 'N/A'),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Done'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error fetching info: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildHeaderCard(BuildContext context) {
@@ -107,6 +196,26 @@ class TransactionDetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PaymentDetailRow extends StatelessWidget {
+  const _PaymentDetailRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600])),
+          SelectableText(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        ],
       ),
     );
   }

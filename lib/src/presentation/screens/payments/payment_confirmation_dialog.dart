@@ -50,4 +50,3 @@ class PaymentConfirmationDialog extends StatelessWidget {
     );
   }
 }
-

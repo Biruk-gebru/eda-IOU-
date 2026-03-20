@@ -2,39 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../transactions/transaction_detail_screen.dart';
 import 'group_detail_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_providers.dart';
 
-class GroupsScreen extends StatefulWidget {
+class GroupsScreen extends ConsumerStatefulWidget {
   const GroupsScreen({super.key});
 
   @override
-  State<GroupsScreen> createState() => _GroupsScreenState();
+  ConsumerState<GroupsScreen> createState() => _GroupsScreenState();
 }
 
-class _GroupsScreenState extends State<GroupsScreen> {
-  final _groups = const [
-    _GroupCardData(
-      name: 'Weekend Trip',
-      members: 6,
-      pendingApprovals: 2,
-      outstandingAmount: 1240,
-    ),
-    _GroupCardData(
-      name: 'Roommates',
-      members: 4,
-      pendingApprovals: 0,
-      outstandingAmount: 320,
-    ),
-    _GroupCardData(
-      name: 'Family Budget',
-      members: 5,
-      pendingApprovals: 1,
-      outstandingAmount: 870,
-    ),
-  ];
-
+class _GroupsScreenState extends ConsumerState<GroupsScreen> {
+  // Removing hardcoded _groups
+  
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final client = ref.watch(supabaseClientProvider);
+    final user = client.auth.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -52,33 +37,74 @@ class _GroupsScreenState extends State<GroupsScreen> {
         icon: const Icon(Icons.group_add_outlined),
         label: const Text('New group'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _buildSummaryRow(colorScheme),
-          const SizedBox(height: 24),
-          ..._groups.map(
-            (group) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _GroupCard(
-                data: group,
-                onTap: () => _openGroupDetail(context, group.name),
-              ),
+      body: user == null 
+          ? const Center(child: Text('Please sign in'))
+          : StreamBuilder<List<Map<String, dynamic>>>(
+              stream: client
+                  .from('groups')
+                  .stream(primaryKey: ['id'])
+                  .order('created_at', ascending: false),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                final groups = snapshot.data!;
+                
+                if (groups.isEmpty) {
+                   return Center(
+                     child: Column(
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [
+                         Icon(Icons.groups_outlined, size: 64, color: Colors.grey[300]),
+                         const SizedBox(height: 16),
+                         Text('No groups yet', style: TextStyle(color: Colors.grey.shade600)),
+                       ],
+                     ),
+                   );
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    _buildSummaryRow(colorScheme, groups.length),
+                    const SizedBox(height: 24),
+                    ...groups.map(
+                      (groupData) {
+                         // Mapping raw data to _GroupCardData for now
+                         final group = _GroupCardData(
+                           name: groupData['name'] ?? 'Unnamed',
+                           members: 1, // Placeholder until we have members table
+                           pendingApprovals: 0,
+                           outstandingAmount: 0,
+                         );
+                         return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _GroupCard(
+                              data: group,
+                              onTap: () => _openGroupDetail(context, group.name),
+                            ),
+                          );
+                      },
+                    ),
+                    const SizedBox(height: 80),
+                  ],
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 80),
-        ],
-      ),
     );
   }
 
-  Widget _buildSummaryRow(ColorScheme colorScheme) {
+  Widget _buildSummaryRow(ColorScheme colorScheme, int count) {
     return Row(
       children: [
         Expanded(
           child: _SummaryTile(
             label: 'Your groups',
-            value: '${_groups.length}',
+            value: '$count',
             icon: Icons.groups_rounded,
             color: colorScheme.primary,
           ),
@@ -87,7 +113,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
         Expanded(
           child: _SummaryTile(
             label: 'Pending invites',
-            value: '3',
+            value: '0', // Placeholder
             icon: Icons.mail_outline,
             color: colorScheme.secondary,
           ),
@@ -206,13 +232,18 @@ class _GroupCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _InfoChip(
-                  icon: Icons.pending_actions_outlined,
-                  label: '${data.pendingApprovals} approvals',
+                Flexible(
+                  child: _InfoChip(
+                    icon: Icons.pending_actions_outlined,
+                    label: '${data.pendingApprovals} approvals',
+                  ),
                 ),
-                _InfoChip(
-                  icon: Icons.attach_money,
-                  label: 'ETB ${data.outstandingAmount.toStringAsFixed(0)}',
+                const SizedBox(width: 8),
+                Flexible(
+                  child: _InfoChip(
+                    icon: Icons.attach_money,
+                    label: 'ETB ${data.outstandingAmount.toStringAsFixed(0)}',
+                  ),
                 ),
               ],
             ),
@@ -255,22 +286,27 @@ class _SummaryTile extends StatelessWidget {
             child: Icon(icon, color: color),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(color: color, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(color: color, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -296,25 +332,32 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.grey[700]),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _CreateGroupSheet extends StatefulWidget {
+class _CreateGroupSheet extends ConsumerStatefulWidget {
   const _CreateGroupSheet();
 
   @override
-  State<_CreateGroupSheet> createState() => _CreateGroupSheetState();
+  ConsumerState<_CreateGroupSheet> createState() => _CreateGroupSheetState();
 }
 
-class _CreateGroupSheetState extends State<_CreateGroupSheet> {
+class _CreateGroupSheetState extends ConsumerState<_CreateGroupSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _requireApproval = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -376,8 +419,10 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _submit,
-                child: const Text('Create group'),
+                onPressed: _isLoading ? null : _submit,
+                child: _isLoading 
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+                  : const Text('Create group'),
               ),
             ),
             const SizedBox(height: 16),
@@ -387,12 +432,42 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_formKey.currentState?.validate() ?? false) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Group created (demo)')));
+      setState(() => _isLoading = true);
+      try {
+        final client = ref.read(supabaseClientProvider);
+        final user = client.auth.currentUser;
+        if (user != null) {
+          await client.from('groups').insert({
+            'name': _nameController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'creator_id': user.id,
+            'is_invite_only': _requireApproval,
+            'created_at': DateTime.now().toIso8601String(),
+            // Assuming simplified schema for now
+          });
+          
+          if (mounted) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Group created successfully')),
+            );
+            // In a real app, invalidate a provider here to refresh list
+            // ref.invalidate(groupsProvider);
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Error creating group: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 }

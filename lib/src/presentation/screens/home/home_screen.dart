@@ -4,11 +4,15 @@ import '../groups/groups_screen.dart';
 import '../payments/create_payment_request_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../domain/entities/transaction.dart';
+import '../../providers/transaction_providers.dart';
+
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
@@ -25,7 +29,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 32),
               _buildSectionTitle('Recent Transactions'),
               const SizedBox(height: 16),
-              _buildTransactionList(),
+              _buildTransactionList(ref),
             ],
           ),
         ),
@@ -220,33 +224,44 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionList() {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 5,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        return _buildTransactionItem(index);
+  Widget _buildTransactionList(WidgetRef ref) {
+    final transactionsAsync = ref.watch(transactionListProvider);
+
+    return transactionsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
+      data: (transactions) {
+        if (transactions.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('No transactions yet'),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: transactions.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            return _buildTransactionItem(transactions[index]);
+          },
+        );
       },
     );
   }
 
-  Widget _buildTransactionItem(int index) {
+  Widget _buildTransactionItem(Transaction transaction) {
+    // Determine icon and color based on metadata or description
+    // For now, using defaults or hashing description
     final icons = [
       Icons.shopping_bag_outlined,
       Icons.restaurant_outlined,
       Icons.directions_car_outlined,
       Icons.movie_outlined,
       Icons.fitness_center_outlined,
-    ];
-    final titles = ['Grocery', 'Dinner', 'Uber', 'Cinema', 'Gym'];
-    final amounts = [
-      '-\$45.00',
-      '-\$82.50',
-      '-\$12.00',
-      '-\$24.00',
-      '-\$50.00',
     ];
     final colors = [
       Colors.orange,
@@ -255,6 +270,10 @@ class HomeScreen extends StatelessWidget {
       Colors.purple,
       Colors.green,
     ];
+    
+    final index = transaction.description.length % icons.length;
+    final icon = icons[index];
+    final color = colors[index];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -274,10 +293,10 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colors[index].withValues(alpha: 0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icons[index], color: colors[index]),
+            child: Icon(icon, color: color),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -285,7 +304,7 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  titles[index],
+                  transaction.description,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -294,14 +313,15 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Today, 10:00 AM',
+                  // Simple date formatting
+                  '${transaction.createdAt.day}/${transaction.createdAt.month}/${transaction.createdAt.year}',
                   style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ],
             ),
           ),
           Text(
-            amounts[index],
+            '-\$${transaction.totalAmount.toStringAsFixed(2)}',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -399,10 +419,7 @@ class _QuickActionCard extends StatelessWidget {
             Text(
               data.label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ],
         ),
