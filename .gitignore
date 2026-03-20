@@ -13,7 +13,10 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-requiemnest.md
+
+# Documentation (only README.md tracked)
+*.md
+!README.md
 
 # -------------------------
 # IntelliJ / Android Studio
@@ -99,12 +102,15 @@ coverage/
 # -------------------------
 .env
 *.env
+.env.example
 secrets.json
 lib/src/core/constants/supabase_config.dart
 
+
+# SQL migration files
+*.sql
 
 # Desktop folders (ignore if not targeting)
 windows/
 linux/
 macos/
-
