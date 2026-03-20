@@ -7,8 +7,6 @@ Future<void> initializeDependencies() async {
   SupabaseConfig.ensureConfigured();
 
   await Hive.initFlutter();
-  // TODO: Run `dart run build_runner build` to generate the adapter
-  // Hive.registerAdapter(BankingInfoModelAdapter());
 
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
