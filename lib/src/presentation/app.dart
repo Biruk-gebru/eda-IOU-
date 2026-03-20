@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 
 import '../core/providers/connectivity_provider.dart';
 import 'providers/auth_providers.dart';
+import 'providers/theme_provider.dart';
 import 'screens/auth/offline_login_screen.dart';
 import 'screens/auth/sign_in_screen.dart';
 import 'screens/main_shell.dart';
@@ -15,11 +16,22 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final themeData = resolveTheme(mode, brightness);
+
     return MaterialApp(
       title: 'Eda',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData.light(useMaterial3: true),
+      darkTheme: ThemeData.dark(useMaterial3: true),
+      themeMode: switch (mode) {
+        AppThemeMode.system => ThemeMode.system,
+        AppThemeMode.light => ThemeMode.light,
+        AppThemeMode.dark => ThemeMode.dark,
+      },
       builder: (context, child) => FTheme(
-        data: FThemes.zinc.light.touch,
+        data: themeData,
         child: child!,
       ),
       home: const AuthGate(),
@@ -34,10 +46,12 @@ class AuthGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionAsync = ref.watch(authSessionProvider);
     final connectivityAsync = ref.watch(connectivityProvider);
+    final colors = context.theme.colors;
 
     return sessionAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      loading: () => Scaffold(
+        backgroundColor: colors.background,
+        body: Center(child: CircularProgressIndicator(color: colors.primary)),
       ),
       error: (error, _) => FScaffold(
         child: Center(
@@ -68,10 +82,7 @@ class AuthGate extends ConsumerWidget {
           final metadata = user.userMetadata;
           final hasBankInfo = metadata?['has_bank_info'] == true;
 
-          if (!hasBankInfo) {
-            return const BankInfoScreen();
-          }
-
+          if (!hasBankInfo) return const BankInfoScreen();
           return const MainShell();
         }
 
@@ -81,8 +92,10 @@ class AuthGate extends ConsumerWidget {
             if (isOffline) return const OfflineLoginScreen();
             return const SignInScreen();
           },
-          loading: () => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          loading: () => Scaffold(
+            backgroundColor: colors.background,
+            body: Center(
+                child: CircularProgressIndicator(color: colors.primary)),
           ),
           error: (_, __) => const SignInScreen(),
         );
