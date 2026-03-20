@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 
 import '../../providers/group_providers.dart';
-import '../transactions/transaction_detail_screen.dart';
 import 'group_detail_screen.dart';
 
 class GroupsScreen extends ConsumerStatefulWidget {
@@ -16,86 +15,75 @@ class GroupsScreen extends ConsumerStatefulWidget {
 class _GroupsScreenState extends ConsumerState<GroupsScreen> {
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
+    final colors = theme.colors;
+    final typo = theme.typography;
     final groupsAsync = ref.watch(groupListProvider);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 16),
-          // Title row
+          // Header row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Groups',
-                style: context.theme.typography.xl2.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: context.theme.colors.foreground,
+              Expanded(
+                child: Text(
+                  'Groups',
+                  style: typo.lg.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
                 ),
               ),
-              Row(
-                children: [
-                  FButton.icon(
-                    onPress: () => _openTransactionTimeline(context),
-                    child: const Icon(FIcons.clock),
-                  ),
-                  const SizedBox(width: 8),
-                  FButton(
-                    onPress: () => _showCreateGroupDialog(context),
-                    prefix: const Icon(FIcons.plus),
-                    child: const Text('New group'),
-                  ),
-                ],
+              FButton(
+                onPress: () => _showCreateGroupDialog(context),
+                prefix: const Icon(FIcons.plus),
+                child: const Text('New'),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
           // Content
           Expanded(
             child: groupsAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator.adaptive(),
-              ),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator.adaptive()),
               error: (error, _) => Center(
-                child: FCard(
-                  title: const Text('Something went wrong'),
-                  subtitle: Text('$error'),
-                  child: FButton(
-                    variant: FButtonVariant.outline,
-                    onPress: () => ref.invalidate(groupListProvider),
-                    prefix: const Icon(FIcons.refreshCw),
-                    child: const Text('Retry'),
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Something went wrong',
+                        style: typo.sm.copyWith(color: colors.destructive)),
+                    const SizedBox(height: 12),
+                    FButton(
+                      variant: FButtonVariant.outline,
+                      onPress: () => ref.invalidate(groupListProvider),
+                      prefix: const Icon(FIcons.refreshCw),
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
               ),
               data: (groups) {
                 if (groups.isEmpty) {
                   return Center(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          FIcons.users,
-                          size: 64,
-                          color: context.theme.colors.mutedForeground,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No groups yet',
-                          style: context.theme.typography.lg.copyWith(
-                            color: context.theme.colors.mutedForeground,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Create a group to start tracking expenses',
-                          style: context.theme.typography.sm.copyWith(
-                            color: context.theme.colors.mutedForeground,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
+                        Icon(FIcons.users,
+                            size: 48, color: colors.mutedForeground),
+                        const SizedBox(height: 12),
+                        Text('No groups yet',
+                            style: typo.md
+                                .copyWith(color: colors.mutedForeground)),
+                        const SizedBox(height: 4),
+                        Text('Create one to start tracking expenses',
+                            style: typo.sm
+                                .copyWith(color: colors.mutedForeground)),
+                        const SizedBox(height: 20),
                         FButton(
                           onPress: () => _showCreateGroupDialog(context),
                           prefix: const Icon(FIcons.plus),
@@ -107,58 +95,69 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                 }
 
                 return ListView(
-                  padding: const EdgeInsets.only(bottom: 80),
+                  padding: const EdgeInsets.only(bottom: 24),
                   children: [
-                    // Summary cards row
+                    // Summary
                     Row(
                       children: [
                         Expanded(
-                          child: FCard(
-                            title: Text(
-                              '${groups.length}',
-                              style: context.theme.typography.xl2.copyWith(
-                                fontWeight: FontWeight.bold,
+                          child: FCard.raw(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('${groups.length}',
+                                      style: typo.xl.copyWith(
+                                          fontWeight: FontWeight.bold)),
+                                  Text('Groups',
+                                      style: typo.xs.copyWith(
+                                          color: colors.mutedForeground)),
+                                ],
                               ),
                             ),
-                            subtitle: const Text('Your groups'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: FCard(
-                            title: Text(
-                              '0',
-                              style: context.theme.typography.xl2.copyWith(
-                                fontWeight: FontWeight.bold,
+                          child: FCard.raw(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('0',
+                                      style: typo.xl.copyWith(
+                                          fontWeight: FontWeight.bold)),
+                                  Text('Pending',
+                                      style: typo.xs.copyWith(
+                                          color: colors.mutedForeground)),
+                                ],
                               ),
                             ),
-                            subtitle: const Text('Pending invites'),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
                     // Group list
                     FTileGroup(
-                      label: Text(
-                        'All groups',
-                        style: context.theme.typography.sm.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: context.theme.colors.mutedForeground,
-                        ),
-                      ),
                       children: [
-                        for (final group in groups)
+                        for (final g in groups)
                           FTile(
-                            title: Text(group.name),
-                            subtitle: group.description != null
-                                ? Text(group.description!)
+                            title: Text(g.name),
+                            subtitle: g.description != null
+                                ? Text(g.description!)
                                 : null,
                             suffix: const Icon(FIcons.chevronRight),
-                            onPress: () => _openGroupDetail(
-                              context,
-                              group.id,
-                              group.name,
+                            onPress: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => GroupDetailScreen(
+                                  groupId: g.id,
+                                  groupName: g.name,
+                                ),
+                              ),
                             ),
                           ),
                       ],
@@ -176,56 +175,26 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
   void _showCreateGroupDialog(BuildContext context) {
     showFDialog(
       context: context,
-      builder: (dialogContext, style, animation) => FDialog.raw(
+      builder: (ctx, style, animation) => FDialog.raw(
         animation: animation,
-        builder: (context, style) => Padding(
-          padding: const EdgeInsets.all(16),
+        builder: (ctx, style) => Padding(
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Create group',
-                style: context.theme.typography.lg.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: context.theme.colors.foreground,
-                ),
-              ),
+              Text('Create group',
+                  style: context.theme.typography.lg
+                      .copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              Text(
-                'Add a new group to track shared expenses.',
-                style: context.theme.typography.sm.copyWith(
-                  color: context.theme.colors.mutedForeground,
-                ),
-              ),
+              Text('Add a new group to track shared expenses.',
+                  style: context.theme.typography.sm
+                      .copyWith(color: context.theme.colors.mutedForeground)),
               const SizedBox(height: 16),
               const _CreateGroupForm(),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _openGroupDetail(
-    BuildContext context,
-    String groupId,
-    String groupName,
-  ) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => GroupDetailScreen(
-          groupId: groupId,
-          groupName: groupName,
-        ),
-      ),
-    );
-  }
-
-  void _openTransactionTimeline(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => TransactionDetailScreen(transactionId: 'demo'),
       ),
     );
   }
@@ -239,14 +208,14 @@ class _CreateGroupForm extends ConsumerStatefulWidget {
 }
 
 class _CreateGroupFormState extends ConsumerState<_CreateGroupForm> {
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  bool _isLoading = false;
+  final _nameCtl = TextEditingController();
+  final _descCtl = TextEditingController();
+  bool _loading = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
+    _nameCtl.dispose();
+    _descCtl.dispose();
     super.dispose();
   }
 
@@ -257,43 +226,33 @@ class _CreateGroupFormState extends ConsumerState<_CreateGroupForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FTextField(
-          label: const Text('Group name'),
-          hint: 'Enter group name',
-          control: FTextFieldControl.managed(
-            controller: _nameController,
-          ),
-          enabled: !_isLoading,
+          label: const Text('Name'),
+          hint: 'Group name',
+          control: FTextFieldControl.managed(controller: _nameCtl),
+          enabled: !_loading,
         ),
         const SizedBox(height: 12),
         FTextField.multiline(
           label: const Text('Description'),
-          hint: 'Enter a description (optional)',
-          control: FTextFieldControl.managed(
-            controller: _descriptionController,
-          ),
+          hint: 'Optional',
+          control: FTextFieldControl.managed(controller: _descCtl),
           minLines: 2,
-          maxLines: 4,
-          enabled: !_isLoading,
+          maxLines: 3,
+          enabled: !_loading,
         ),
         const SizedBox(height: 16),
         FButton(
-          onPress: _isLoading ? null : _submit,
-          child: _isLoading
+          onPress: _loading ? null : _submit,
+          child: _loading
               ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator.adaptive(
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Create group'),
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator.adaptive(strokeWidth: 2))
+              : const Text('Create'),
         ),
         const SizedBox(height: 8),
         FButton(
           variant: FButtonVariant.outline,
-          onPress: _isLoading
-              ? null
-              : () => Navigator.of(context).pop(),
+          onPress: _loading ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
       ],
@@ -301,31 +260,24 @@ class _CreateGroupFormState extends ConsumerState<_CreateGroupForm> {
   }
 
   Future<void> _submit() async {
-    final name = _nameController.text.trim();
+    final name = _nameCtl.text.trim();
     if (name.isEmpty) return;
-
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
     try {
       await ref.read(groupRepositoryProvider).createGroup(
             name: name,
-            description: _descriptionController.text.trim().isNotEmpty
-                ? _descriptionController.text.trim()
-                : null,
+            description:
+                _descCtl.text.trim().isNotEmpty ? _descCtl.text.trim() : null,
           );
       ref.invalidate(groupListProvider);
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating group: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 }
