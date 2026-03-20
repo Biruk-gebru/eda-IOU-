@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
+
 import '../../providers/auth_providers.dart';
 
 class OfflineLoginScreen extends ConsumerWidget {
@@ -7,33 +9,24 @@ class OfflineLoginScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: Center(
+    return FScaffold(
+      child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
-              const SizedBox(height: 24),
-              Text(
-                'You are offline',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'We cannot log you in while you are offline. Please check your internet connection and try again.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              FilledButton(
-                onPressed: () {
-                  // Trigger a refresh of the session provider
-                  ref.refresh(authSessionProvider);
-                },
+          child: FCard(
+            title: const Text('You are offline'),
+            subtitle: const Text(
+              'We cannot log you in while you are offline. '
+              'Please check your internet connection and try again.',
+            ),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: FButton(
+                onPress: () => ref.refresh(authSessionProvider),
+                prefix: const Icon(FIcons.refreshCw),
                 child: const Text('Retry Connection'),
               ),
-            ],
+            ),
           ),
         ),
       ),

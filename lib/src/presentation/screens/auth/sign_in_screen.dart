@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 
 import '../../controllers/auth_controller.dart';
 
@@ -11,7 +13,6 @@ class SignInScreen extends ConsumerStatefulWidget {
 }
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -20,6 +21,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   bool _isSignUp = false;
   bool _isEmailLoading = false;
   bool _isGoogleLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -32,160 +34,195 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      body: SafeArea(
+    return FScaffold(
+      child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHero(context),
               const SizedBox(height: 32),
-              Text(
-                _isSignUp ? 'Create your account' : 'Welcome back',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+              // Hero section
+              FCard(
+                title: Text(
+                  _isSignUp ? 'Create your account' : 'Welcome back',
+                ),
+                subtitle: Text(
+                  _isSignUp
+                      ? 'Sign up to start tracking IOUs with approvals.'
+                      : 'Sign in to keep your groups and balances in sync.',
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _isSignUp
-                    ? 'Sign up to start tracking IOUs with approvals.'
-                    : 'Sign in to keep your groups and balances in sync.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+              const SizedBox(height: 24),
+
+              // Error alert
+              if (_errorMessage != null) ...[
+                FAlert(
+                  variant: FAlertVariant.destructive,
+                  icon: const Icon(FIcons.circleAlert),
+                  title: const Text('Error'),
+                  subtitle: Text(_errorMessage!),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Mode toggle buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: FButton(
+                      variant: _isSignUp
+                          ? FButtonVariant.ghost
+                          : FButtonVariant.primary,
+                      onPress: () => setState(() => _isSignUp = false),
+                      child: const Text('Sign in'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FButton(
+                      variant: _isSignUp
+                          ? FButtonVariant.primary
+                          : FButtonVariant.ghost,
+                      onPress: () => setState(() => _isSignUp = true),
+                      child: const Text('Sign up'),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
-              _buildModeToggle(colorScheme),
+
+              // Full name field (sign-up only)
+              if (_isSignUp) ...[
+                FTextField(
+                  control: FTextFieldControl.managed(
+                    controller: _fullNameController,
+                  ),
+                  label: const Text('Full name'),
+                  hint: 'Enter your full name',
+                  textInputAction: TextInputAction.next,
+                  prefixBuilder: (context, style, variants) =>
+                      FTextField.prefixIconBuilder(
+                    context,
+                    style,
+                    variants,
+                    const Icon(FIcons.user),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Email field
+              FTextField.email(
+                control: FTextFieldControl.managed(
+                  controller: _emailController,
+                ),
+                hint: 'Enter your email',
+                prefixBuilder: (context, style, variants) =>
+                    FTextField.prefixIconBuilder(
+                  context,
+                  style,
+                  variants,
+                  const Icon(FIcons.mail),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Password field
+              FTextField.password(
+                control: FTextFieldControl.managed(
+                  controller: _passwordController,
+                ),
+                hint: 'Enter your password',
+                textInputAction:
+                    _isSignUp ? TextInputAction.next : TextInputAction.done,
+                prefixBuilder: (context, style, obscure, variants) =>
+                    FTextField.prefixIconBuilder(
+                  context,
+                  style,
+                  variants,
+                  const Icon(FIcons.lock),
+                ),
+                onSubmit: _isSignUp ? null : (_) => _handleEmailAction(),
+              ),
+
+              // Confirm password field (sign-up only)
+              if (_isSignUp) ...[
+                const SizedBox(height: 16),
+                FTextField.password(
+                  control: FTextFieldControl.managed(
+                    controller: _confirmPasswordController,
+                  ),
+                  label: const Text('Confirm password'),
+                  hint: 'Re-enter your password',
+                  textInputAction: TextInputAction.done,
+                  prefixBuilder: (context, style, obscure, variants) =>
+                      FTextField.prefixIconBuilder(
+                    context,
+                    style,
+                    variants,
+                    const Icon(FIcons.lock),
+                  ),
+                  onSubmit: (_) => _handleEmailAction(),
+                ),
+              ],
+
               const SizedBox(height: 24),
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    if (_isSignUp) ...[
-                      TextFormField(
-                        controller: _fullNameController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Full name',
-                          prefixIcon: Icon(Icons.person_outline),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Email address',
-                        prefixIcon: Icon(Icons.mail_outline),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Email is required';
-                        }
-                        final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                        if (!emailRegex.hasMatch(value)) {
-                          return 'Enter a valid email';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      textInputAction: _isSignUp
-                          ? TextInputAction.next
-                          : TextInputAction.done,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Password is required';
-                        }
-                        if (value.length < 8) {
-                          return 'Use at least 8 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    if (_isSignUp) ...[
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        obscureText: true,
-                        textInputAction: TextInputAction.done,
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm password',
-                          prefixIcon: Icon(Icons.lock_person_outlined),
-                        ),
-                        validator: (value) {
-                          if (!_isSignUp) return null;
-                          if (value == null || value.isEmpty) {
-                            return 'Please confirm your password';
-                          }
-                          if (value != _passwordController.text) {
-                            return 'Passwords do not match';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        icon: Icon(
-                          _isSignUp ? Icons.person_add_alt : Icons.login,
-                        ),
-                        label: Text(
-                          _isSignUp ? 'Create account' : 'Sign in with email',
-                        ),
-                        onPressed: _isEmailLoading ? null : _handleEmailAction,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: _GoogleLogo(isLoading: _isGoogleLoading),
-                        label: Text(
-                          _isGoogleLoading
-                              ? 'Launching Google...'
-                              : 'Continue with Google',
-                        ),
-                        onPressed: _isGoogleLoading
-                            ? null
-                            : () => _handleGoogleSignIn(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.apple),
-                        label: const Text('Continue with Apple'),
-                        onPressed: () =>
-                            _showComingSoon(context, 'Apple Sign-In'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'By continuing you agree to our Terms of Service and Privacy Policy.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-                    ),
-                  ],
+
+              // Submit button
+              FButton(
+                variant: FButtonVariant.primary,
+                onPress: _isEmailLoading ? null : _handleEmailAction,
+                prefix: _isEmailLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: FCircularProgress(),
+                      )
+                    : Icon(_isSignUp ? FIcons.userPlus : FIcons.logIn),
+                child: Text(
+                  _isSignUp ? 'Create account' : 'Sign in with email',
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Google sign-in button
+              FButton(
+                variant: FButtonVariant.outline,
+                onPress: _isGoogleLoading ? null : _handleGoogleSignIn,
+                prefix: _isGoogleLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: FCircularProgress(),
+                      )
+                    : const Icon(FIcons.globe),
+                child: Text(
+                  _isGoogleLoading
+                      ? 'Launching Google...'
+                      : 'Continue with Google',
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Apple sign-in button
+              FButton(
+                variant: FButtonVariant.outline,
+                onPress: () => _showComingSoon('Apple Sign-In'),
+                prefix: const Icon(FIcons.apple),
+                child: const Text('Continue with Apple'),
+              ),
+              const SizedBox(height: 16),
+
+              // Terms text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'By continuing you agree to our Terms of Service and Privacy Policy.',
+                  textAlign: TextAlign.center,
+                  style: context.theme.typography.xs.copyWith(
+                    color: context.theme.colors.mutedForeground,
+                  ),
                 ),
               ),
             ],
@@ -195,101 +232,73 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     );
   }
 
-  Widget _buildModeToggle(ColorScheme colorScheme) {
-    return SegmentedButton<bool>(
-      segments: const [
-        ButtonSegment(value: false, label: Text('Sign in')),
-        ButtonSegment(value: true, label: Text('Sign up')),
-      ],
-      selected: {_isSignUp},
-      style: SegmentedButton.styleFrom(
-        backgroundColor: colorScheme.surfaceVariant,
-        selectedBackgroundColor: colorScheme.primary.withValues(alpha: 0.15),
-        selectedForegroundColor: colorScheme.primary,
-      ),
-      onSelectionChanged: (selection) {
-        setState(() {
-          _isSignUp = selection.first;
-        });
-      },
-    );
-  }
-
-  Widget _buildHero(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        gradient: LinearGradient(
-          colors: [colorScheme.primary, colorScheme.secondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            'Track and settle balances',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Requests • Approvals • Payments',
-            style: TextStyle(color: Colors.white70),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _handleEmailAction() async {
-    final messenger = ScaffoldMessenger.of(context);
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
 
-    if (!_formKey.currentState!.validate()) return;
+    // Validate fields
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-    setState(() => _isEmailLoading = true);
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'Email is required.');
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+    if (!emailRegex.hasMatch(email)) {
+      setState(() => _errorMessage = 'Enter a valid email.');
+      return;
+    }
+
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Password is required.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setState(() => _errorMessage = 'Use at least 8 characters for the password.');
+      return;
+    }
+
+    if (_isSignUp) {
+      final confirm = _confirmPasswordController.text;
+      if (confirm.isEmpty) {
+        setState(() => _errorMessage = 'Please confirm your password.');
+        return;
+      }
+      if (confirm != password) {
+        setState(() => _errorMessage = 'Passwords do not match.');
+        return;
+      }
+    }
+
+    setState(() {
+      _isEmailLoading = true;
+      _errorMessage = null;
+    });
+
     final controller = ref.read(authControllerProvider);
 
     try {
       if (_isSignUp) {
         await controller.signUpWithEmail(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
+          email: email,
+          password: password,
           fullName: _fullNameController.text.trim(),
-        );
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Check your inbox to confirm your email.'),
-          ),
         );
         setState(() {
           _isSignUp = false;
           _confirmPasswordController.clear();
+          _errorMessage = null;
         });
       } else {
         await controller.signInWithEmail(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
+          email: email,
+          password: password,
         );
       }
     } on AuthControllerException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      setState(() => _errorMessage = e.message);
     } finally {
       if (mounted) {
         setState(() => _isEmailLoading = false);
@@ -298,15 +307,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _handleGoogleSignIn() async {
-    FocusScope.of(context).unfocus();
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isGoogleLoading = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
 
     final controller = ref.read(authControllerProvider);
     try {
       await controller.signInWithGoogle();
     } on AuthControllerException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      setState(() => _errorMessage = e.message);
     } finally {
       if (mounted) {
         setState(() => _isGoogleLoading = false);
@@ -314,37 +325,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
-  void _showComingSoon(BuildContext context, String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label flow coming soon')));
-  }
-}
-
-class _GoogleLogo extends StatelessWidget {
-  const _GoogleLogo({required this.isLoading});
-
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return const SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    }
-
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: const BoxDecoration(shape: BoxShape.circle),
-      child: Image.network(
-        'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.png',
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata),
-      ),
-    );
+  void _showComingSoon(String label) {
+    setState(() => _errorMessage = '$label flow coming soon.');
   }
 }
