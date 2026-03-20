@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
 import 'home/home_screen.dart';
@@ -24,8 +24,10 @@ class _MainShellState extends State<MainShell> {
   ];
 
   @override
-  Widget build(BuildContext context) => FScaffold(
-        footer: FBottomNavigationBar(
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: context.theme.colors.background,
+        body: SafeArea(child: _screens[_index]),
+        bottomNavigationBar: FBottomNavigationBar(
           index: _index,
           onChange: (i) => setState(() => _index = i),
           children: const [
@@ -47,6 +49,5 @@ class _MainShellState extends State<MainShell> {
             ),
           ],
         ),
-        child: _screens[_index],
       );
 }
