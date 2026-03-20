@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/user_repository.dart';
-import '../../domain/entities/user.dart';
+import '../../domain/entities/user.dart' as domain;
 import 'auth_providers.dart';
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {
@@ -9,7 +9,7 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepository(client);
 });
 
-final currentUserProvider = FutureProvider<User?>((ref) async {
+final currentUserProvider = FutureProvider<domain.User?>((ref) async {
   final repository = ref.watch(userRepositoryProvider);
   return repository.getCurrentUser();
 });
