@@ -271,7 +271,7 @@ class HomeScreen extends ConsumerWidget {
       Colors.green,
     ];
     
-    final index = transaction.description.length % icons.length;
+    final index = (transaction.description ?? '').length % icons.length;
     final icon = icons[index];
     final color = colors[index];
 
@@ -304,7 +304,7 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  transaction.description,
+                  transaction.description ?? 'Transaction',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -314,7 +314,7 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   // Simple date formatting
-                  '${transaction.createdAt.day}/${transaction.createdAt.month}/${transaction.createdAt.year}',
+                  '${transaction.createdAt?.day ?? '-'}/${transaction.createdAt?.month ?? '-'}/${transaction.createdAt?.year ?? '-'}',
                   style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ],
