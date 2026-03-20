@@ -7,16 +7,17 @@ part 'transaction.g.dart';
 class Transaction with _$Transaction {
   const factory Transaction({
     required String id,
-    @Default(null) String? groupId,
-    required String description,
-    required String creatorId,
-    required String payerId,
-    required double totalAmount,
-    required String currency,
-    @Default(null) Map<String, dynamic>? metadata,
-    required DateTime createdAt,
-    required DateTime timeoutAt,
-    required String status,
+    @JsonKey(name: 'group_id') String? groupId,
+    String? description,
+    @JsonKey(name: 'creator_id') required String creatorId,
+    @JsonKey(name: 'payer_id') required String payerId,
+    @JsonKey(name: 'total_amount') required double totalAmount,
+    @Default('ETB') String currency,
+    Map<String, dynamic>? metadata,
+    @JsonKey(name: 'created_at') DateTime? createdAt,
+    @JsonKey(name: 'updated_at') DateTime? updatedAt,
+    @JsonKey(name: 'timeout_at') DateTime? timeoutAt,
+    @Default('pending') String status,
   }) = _Transaction;
 
   factory Transaction.fromJson(Map<String, dynamic> json) =>
