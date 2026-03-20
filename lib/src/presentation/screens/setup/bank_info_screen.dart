@@ -57,22 +57,6 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
         ),
       );
 
-      // Save Local (Hive)
-      // Note: Ensure Hive is initialized and Adapter registered in main/DI
-      // final box = await Hive.openBox<BankingInfoModel>('banking_info');
-      // await box.put('user_bank_info', BankingInfoModel(...));
-      // For now, effectively just a placeholder until we run build_runner and register adapter
-      // implementing raw Hive put for demo if adapter not ready? 
-      // No, let's assume adapter will be there.
-      
-      // I'll leave a TODO or try to implement if I can import the model.
-      // Importing model:
-      // import '../../../data/model/banking_info_model.dart';
-      // import 'package:hive_flutter/hive_flutter.dart';
-      
-      // Since I can't easily compile inside the agent to verify adapter existence:
-      // I will put the code but comment about running build_runner.
-
       // Refresh session
       ref.refresh(authSessionProvider);
       
