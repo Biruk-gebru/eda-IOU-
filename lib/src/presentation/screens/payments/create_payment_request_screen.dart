@@ -151,4 +151,3 @@ class _CreatePaymentRequestScreenState
     }
   }
 }
-

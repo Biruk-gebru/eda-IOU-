@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'banking_info.dart';
 
 part 'user.freezed.dart';
 
@@ -11,8 +12,9 @@ class User with _$User {
     String? avatarUrl,
     String? preferredPaymentMethod,
     Map<String, dynamic>? paymentDetails,
+    BankingInfo? bankingInfo,
     required DateTime createdAt,
   }) = _User;
-  
+
   const User._();
 }
