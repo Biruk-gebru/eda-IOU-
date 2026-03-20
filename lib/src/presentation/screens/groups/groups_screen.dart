@@ -157,6 +157,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                             suffix: const Icon(FIcons.chevronRight),
                             onPress: () => _openGroupDetail(
                               context,
+                              group.id,
                               group.name,
                             ),
                           ),
@@ -206,10 +207,17 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
     );
   }
 
-  void _openGroupDetail(BuildContext context, String groupName) {
+  void _openGroupDetail(
+    BuildContext context,
+    String groupId,
+    String groupName,
+  ) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GroupDetailScreen(groupName: groupName),
+        builder: (_) => GroupDetailScreen(
+          groupId: groupId,
+          groupName: groupName,
+        ),
       ),
     );
   }

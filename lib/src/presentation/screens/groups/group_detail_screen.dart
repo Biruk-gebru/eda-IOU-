@@ -1,195 +1,368 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 
-class GroupDetailScreen extends StatefulWidget {
-  const GroupDetailScreen({super.key, required this.groupName});
+import '../../providers/auth_providers.dart';
+import '../../providers/group_providers.dart';
+import '../../providers/transaction_providers.dart';
 
+class GroupDetailScreen extends ConsumerWidget {
+  const GroupDetailScreen({
+    super.key,
+    required this.groupId,
+    required this.groupName,
+  });
+
+  final String groupId;
   final String groupName;
 
   @override
-  State<GroupDetailScreen> createState() => _GroupDetailScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FScaffold(
+      header: FHeader.nested(
+        title: Text(groupName),
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () => Navigator.of(context).pop(),
+          ),
+        ],
+        suffixes: [
+          FHeaderAction(
+            icon: const Icon(FIcons.ellipsis),
+            onPress: () {},
+          ),
+        ],
+      ),
+      childPad: false,
+      child: FTabs(
+        expands: true,
+        children: [
+          FTabEntry(
+            label: const Text('Ledger'),
+            child: Expanded(
+              child: _LedgerTab(groupId: groupId),
+            ),
+          ),
+          FTabEntry(
+            label: const Text('Members'),
+            child: Expanded(
+              child: _MembersTab(groupId: groupId),
+            ),
+          ),
+          FTabEntry(
+            label: const Text('Requests'),
+            child: Expanded(
+              child: _RequestsTab(groupId: groupId),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _GroupDetailScreenState extends State<GroupDetailScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _LedgerTab extends ConsumerWidget {
+  const _LedgerTab({required this.groupId});
+
+  final String groupId;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final transactionsAsync = ref.watch(transactionListProvider);
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.groupName),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt),
-            onPressed: () => _showInviteSheet(context),
-          ),
-          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Ledger'),
-            Tab(text: 'Members'),
-            Tab(text: 'Requests'),
-          ],
-        ),
+    return transactionsAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator.adaptive(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: const Icon(Icons.add),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildLedgerTab(), _buildMembersTab(), _buildRequestsTab()],
-      ),
-    );
-  }
-
-  Widget _buildLedgerTab() {
-    final entries = [
-      _LedgerEntry(
-        title: 'Dinner at Blue Nile',
-        amount: 540,
-        status: 'Pending approval',
-        timestamp: 'Today • 6:12 PM',
-      ),
-      _LedgerEntry(
-        title: 'Uber rides',
-        amount: 220,
-        status: 'Approved',
-        timestamp: 'Yesterday • 9:40 PM',
-      ),
-      _LedgerEntry(
-        title: 'Groceries',
-        amount: 870,
-        status: 'Applied to balances',
-        timestamp: 'Nov 12 • 3:20 PM',
-      ),
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: entries.length,
-      itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: _LedgerCard(entry: entries[index]),
-      ),
-    );
-  }
-
-  Widget _buildMembersTab() {
-    final members = [
-      _Member(name: 'You', role: 'Creator', balance: 0),
-      _Member(name: 'Liya', role: 'Member', balance: -230),
-      _Member(name: 'Tomas', role: 'Member', balance: 120),
-      _Member(name: 'Sarah', role: 'Member', balance: 110),
-    ];
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemBuilder: (context, index) => ListTile(
-        leading: CircleAvatar(
-          child: Text(members[index].name.characters.first),
-        ),
-        title: Text(members[index].name),
-        subtitle: Text(members[index].role),
-        trailing: Text(
-          members[index].balance == 0
-              ? 'Settled'
-              : '${members[index].balance > 0 ? 'Owes' : 'Is owed'} '
-                    'ETB ${members[index].balance.abs()}',
-          style: TextStyle(
-            color: members[index].balance >= 0
-                ? Colors.teal
-                : Colors.orangeAccent,
-          ),
-        ),
-      ),
-      separatorBuilder: (context, index) => const Divider(height: 0),
-      itemCount: members.length,
-    );
-  }
-
-  Widget _buildRequestsTab() {
-    final requests = [
-      _Request(name: 'Dawit', type: 'Join request', time: '2h ago'),
-      _Request(name: 'Netsanet', type: 'Approval reminder', time: '1d ago'),
-    ];
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemBuilder: (context, index) => Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-            child: Text(requests[index].name.characters.first),
-          ),
-          title: Text(requests[index].name),
-          subtitle: Text('${requests[index].type} • ${requests[index].time}'),
-          trailing: Wrap(
-            spacing: 8,
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              OutlinedButton(onPressed: () {}, child: const Text('Reject')),
-              FilledButton(onPressed: () {}, child: const Text('Approve')),
+              Icon(
+                FIcons.triangleAlert,
+                size: 40,
+                color: context.theme.colors.mutedForeground,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Could not load transactions',
+                style: context.theme.typography.sm.copyWith(
+                  color: context.theme.colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              FButton(
+                variant: FButtonVariant.outline,
+                onPress: () => ref.invalidate(transactionListProvider),
+                prefix: const Icon(FIcons.refreshCw),
+                child: const Text('Retry'),
+              ),
             ],
           ),
         ),
       ),
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemCount: requests.length,
+      data: (allTransactions) {
+        final transactions = allTransactions
+            .where((t) => t.groupId == groupId)
+            .toList();
+
+        if (transactions.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  FIcons.receipt,
+                  size: 48,
+                  color: context.theme.colors.mutedForeground,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No transactions yet',
+                  style: context.theme.typography.lg.copyWith(
+                    color: context.theme.colors.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Expenses added to this group will appear here',
+                  style: context.theme.typography.sm.copyWith(
+                    color: context.theme.colors.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          itemCount: transactions.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final txn = transactions[index];
+
+            return FCard.raw(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            txn.description ?? 'Untitled expense',
+                            style: context.theme.typography.sm.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${txn.currency} ${txn.totalAmount.toStringAsFixed(0)}',
+                          style: context.theme.typography.sm.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (txn.createdAt != null)
+                      Text(
+                        _formatDate(txn.createdAt!),
+                        style: context.theme.typography.sm.copyWith(
+                          color: context.theme.colors.mutedForeground,
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    FBadge(
+                      variant: FBadgeVariant.outline,
+                      child: Text(txn.status),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays == 0) {
+      return 'Today \u2022 ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays == 1) {
+      return 'Yesterday \u2022 ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ];
+      return '${months[date.month - 1]} ${date.day} \u2022 '
+          '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
+  }
+}
+
+class _MembersTab extends ConsumerWidget {
+  const _MembersTab({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(groupMembersProvider(groupId));
+    final sessionAsync = ref.watch(authSessionProvider);
+    final currentUserId = sessionAsync.valueOrNull?.user.id;
+
+    final groupAsync = ref.watch(groupDetailProvider(groupId));
+    final isCreator = groupAsync.whenOrNull(
+          data: (group) => group.creatorId == currentUserId,
+        ) ??
+        false;
+
+    return membersAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator.adaptive(),
+      ),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Could not load members',
+                style: context.theme.typography.sm.copyWith(
+                  color: context.theme.colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              FButton(
+                variant: FButtonVariant.outline,
+                onPress: () =>
+                    ref.invalidate(groupMembersProvider(groupId)),
+                prefix: const Icon(FIcons.refreshCw),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (members) {
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                itemCount: members.length,
+                itemBuilder: (context, index) {
+                  final member = members[index];
+                  final isCurrentUser = member.userId == currentUserId;
+                  final roleLabel = member.role == 'creator'
+                      ? 'Creator'
+                      : 'Member';
+
+                  return FTile(
+                    prefix: FAvatar.raw(
+                      size: 36,
+                      child: Text(
+                        isCurrentUser
+                            ? 'Y'
+                            : member.userId.characters.first.toUpperCase(),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    title: Text(isCurrentUser ? 'You' : member.userId),
+                    subtitle: Text(roleLabel),
+                    suffix: Text(
+                      member.joinedAt != null
+                          ? 'Joined ${_formatJoinDate(member.joinedAt!)}'
+                          : '',
+                      style: context.theme.typography.xs.copyWith(
+                        color: context.theme.colors.mutedForeground,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (isCreator)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: FButton(
+                  onPress: () => _showInviteSheet(context),
+                  prefix: const Icon(FIcons.userPlus),
+                  child: const Text('Add member'),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatJoinDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}';
   }
 
   void _showInviteSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Invite via link',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: context.theme.typography.lg.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Shareable link',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.copy),
-                  onPressed: () => Navigator.of(context).pop(),
+            const SizedBox(height: 16),
+            FCard.raw(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'https://eda.app/invite/$groupId',
+                        style: context.theme.typography.sm,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    FButton.icon(
+                      onPress: () => Navigator.of(sheetContext).pop(),
+                      child: const Icon(FIcons.copy),
+                    ),
+                  ],
                 ),
               ),
-              controller: TextEditingController(
-                text: 'https://eda.app/invite/demo',
-              ),
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Done'),
-              ),
+            const SizedBox(height: 20),
+            FButton(
+              onPress: () => Navigator.of(sheetContext).pop(),
+              child: const Text('Done'),
             ),
           ],
         ),
@@ -198,76 +371,40 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 }
 
-class _LedgerEntry {
-  _LedgerEntry({
-    required this.title,
-    required this.amount,
-    required this.status,
-    required this.timestamp,
-  });
+class _RequestsTab extends ConsumerWidget {
+  const _RequestsTab({required this.groupId});
 
-  final String title;
-  final double amount;
-  final String status;
-  final String timestamp;
-}
-
-class _LedgerCard extends StatelessWidget {
-  const _LedgerCard({required this.entry});
-
-  final _LedgerEntry entry;
+  final String groupId;
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  entry.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'ETB ${entry.amount.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Placeholder — will be backed by a payment request provider later.
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            FIcons.inbox,
+            size: 48,
+            color: context.theme.colors.mutedForeground,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No requests yet',
+            style: context.theme.typography.lg.copyWith(
+              color: context.theme.colors.mutedForeground,
             ),
-            const SizedBox(height: 8),
-            Text(entry.timestamp, style: TextStyle(color: Colors.grey[600])),
-            const SizedBox(height: 12),
-            Chip(label: Text(entry.status), backgroundColor: Colors.grey[200]),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Payment requests for this group will appear here',
+            style: context.theme.typography.sm.copyWith(
+              color: context.theme.colors.mutedForeground,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
-}
-
-class _Member {
-  _Member({required this.name, required this.role, required this.balance});
-
-  final String name;
-  final String role;
-  final double balance;
-}
-
-class _Request {
-  _Request({required this.name, required this.type, required this.time});
-
-  final String name;
-  final String type;
-  final String time;
 }
