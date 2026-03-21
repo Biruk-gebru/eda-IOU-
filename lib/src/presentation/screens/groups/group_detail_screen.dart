@@ -26,6 +26,12 @@ class GroupDetailScreen extends ConsumerWidget {
             onPress: () => Navigator.of(context).pop(),
           ),
         ],
+        suffixes: [
+          FHeaderAction(
+            icon: const Icon(FIcons.trash2),
+            onPress: () => _confirmDelete(context, ref),
+          ),
+        ],
       ),
       childPad: false,
       child: FTabs(
@@ -48,6 +54,43 @@ class GroupDetailScreen extends ConsumerWidget {
             child: Expanded(
               child: _RequestsTab(groupId: groupId),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    await showFDialog(
+      context: context,
+      builder: (ctx, style, animation) => FDialog(
+        animation: animation,
+        direction: Axis.horizontal,
+        title: const Text('Delete group'),
+        body: const Text(
+            'This will permanently delete the group and remove all members. This cannot be undone.'),
+        actions: [
+          FButton(
+            variant: FButtonVariant.destructive,
+            onPress: () async {
+              Navigator.of(ctx).pop();
+              try {
+                await ref.read(groupRepositoryProvider).deleteGroup(groupId);
+                ref.invalidate(groupListProvider);
+                if (context.mounted) Navigator.of(context).pop();
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+          FButton(
+            variant: FButtonVariant.outline,
+            onPress: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
           ),
         ],
       ),

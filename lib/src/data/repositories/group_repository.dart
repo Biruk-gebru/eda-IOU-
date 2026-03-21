@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/group.dart';
@@ -7,23 +11,42 @@ class GroupRepository {
   GroupRepository(this._client);
 
   final SupabaseClient _client;
+  static const _boxName = 'groups_cache';
 
-  String get _userId => _client.auth.currentUser!.id;
+  String? get _userId => _client.auth.currentUser?.id;
 
   Future<List<Group>> getGroups() async {
-    final data = await _client
-        .from('groups')
-        .select()
-        .order('created_at', ascending: false);
-    return (data as List).map((e) => Group.fromJson(e)).toList();
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOffline = connectivity.contains(ConnectivityResult.none);
+
+    if (isOffline) return _getCachedGroups();
+
+    try {
+      final data = await _client
+          .from('groups')
+          .select()
+          .order('created_at', ascending: false);
+      final groups = (data as List).map((e) => Group.fromJson(e)).toList();
+      await _cacheGroups(groups);
+      return groups;
+    } catch (e) {
+      return _getCachedGroups();
+    }
   }
 
   Stream<List<Group>> watchGroups() {
+    // First emit cached, then stream live
     return _client
         .from('groups')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
-        .map((data) => data.map((e) => Group.fromJson(e)).toList());
+        .map((data) {
+      final groups = data.map((e) => Group.fromJson(e)).toList();
+      _cacheGroups(groups);
+      return groups;
+    }).handleError((_) {
+      // On error, return empty — cached data available via getGroups()
+    });
   }
 
   Future<Group> getGroup(String groupId) async {
@@ -41,7 +64,6 @@ class GroupRepository {
       'description': description,
       'creator_id': _userId,
     }).select().single();
-    // Also add creator as a member
     await _client.from('group_members').insert({
       'group_id': data['id'],
       'user_id': _userId,
@@ -62,7 +84,6 @@ class GroupRepository {
     await _client.from('groups').delete().eq('id', groupId);
   }
 
-  // Members
   Future<List<GroupMember>> getMembers(String groupId) async {
     final data = await _client
         .from('group_members')
@@ -86,5 +107,34 @@ class GroupRepository {
         .delete()
         .eq('group_id', groupId)
         .eq('user_id', userId);
+  }
+
+  // Caching
+  Future<List<Group>> _getCachedGroups() async {
+    try {
+      final box = await Hive.openBox<String>(_boxName);
+      final List<Group> groups = [];
+      for (var i = 0; i < box.length; i++) {
+        final json = box.getAt(i);
+        if (json != null) {
+          try {
+            groups.add(Group.fromJson(jsonDecode(json)));
+          } catch (_) {}
+        }
+      }
+      return groups;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _cacheGroups(List<Group> groups) async {
+    try {
+      final box = await Hive.openBox<String>(_boxName);
+      await box.clear();
+      for (var i = 0; i < groups.length; i++) {
+        await box.put(i, jsonEncode(groups[i].toJson()));
+      }
+    } catch (_) {}
   }
 }
