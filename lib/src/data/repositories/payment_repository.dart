@@ -9,7 +9,23 @@ class PaymentRepository {
 
   String get _userId => _client.auth.currentUser!.id;
 
+  /// Calls the Supabase RPC to expire any pending payment requests whose
+  /// timeout_at has passed. Returns the number of expired requests.
+  Future<int> checkAndExpirePayments() async {
+    try {
+      final result =
+          await _client.rpc('auto_expire_payment_requests');
+      return (result as int?) ?? 0;
+    } catch (e) {
+      // Non-critical — don't block the fetch if cleanup fails
+      return 0;
+    }
+  }
+
   Future<List<PaymentRequest>> getPaymentRequests() async {
+    // Expire timed-out payment requests before fetching
+    await checkAndExpirePayments();
+
     final data = await _client
         .from('payment_requests')
         .select()

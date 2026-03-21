@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../../../domain/entities/transaction.dart';
 import '../../providers/balance_providers.dart';
+import '../../providers/notification_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
+import '../notifications/notification_screen.dart';
 import '../payments/create_payment_request_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 
@@ -25,21 +27,69 @@ class HomeScreen extends ConsumerWidget {
     final name =
         userAsync.whenOrNull(data: (u) => u?.displayName) ?? 'there';
 
+    final unread = ref.watch(unreadCountProvider);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         // Header
-        Text(
-          'Welcome back,',
-          style: typo.sm.copyWith(color: colors.mutedForeground),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          name,
-          style: typo.lg.copyWith(
-            color: colors.foreground,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back,',
+                    style: typo.sm.copyWith(color: colors.mutedForeground),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    name,
+                    style: typo.lg.copyWith(
+                      color: colors.foreground,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: Icon(FIcons.bell, color: colors.foreground),
+                  onPressed: () => _open(context, const NotificationScreen()),
+                ),
+                if (unread > 0)
+                  Positioned(
+                    right: 4,
+                    top: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: colors.destructive,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Text(
+                        unread > 99 ? '99+' : '$unread',
+                        style: typo.xs.copyWith(
+                          color: colors.destructiveForeground,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
 
         const SizedBox(height: 20),
