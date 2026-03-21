@@ -26,12 +26,6 @@ class GroupDetailScreen extends ConsumerWidget {
             onPress: () => Navigator.of(context).pop(),
           ),
         ],
-        suffixes: [
-          FHeaderAction(
-            icon: const Icon(FIcons.ellipsis),
-            onPress: () {},
-          ),
-        ],
       ),
       childPad: false,
       child: FTabs(

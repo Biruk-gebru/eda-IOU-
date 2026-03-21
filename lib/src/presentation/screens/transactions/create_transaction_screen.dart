@@ -258,11 +258,11 @@ class _CreateTransactionScreenState
                 ),
               )
             : Text(participant.isPayer ? 'Payer' : 'Equal split'),
-        prefix: Checkbox(
+        prefix: FCheckbox(
           value: participant.included,
-          onChanged: (value) {
+          onChange: (value) {
             setState(() {
-              participant.included = value ?? true;
+              participant.included = value;
             });
           },
         ),

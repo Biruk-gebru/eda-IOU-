@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import '../../controllers/auth_controller.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_providers.dart';
+import '../profile/edit_profile_screen.dart';
 import '../setup/bank_info_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -36,50 +37,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Profile card
         userAsync.when(
           data: (user) {
-            final name = user?.displayName ?? 'Your profile';
-            final email = user?.email ?? '';
+            final name = user?.displayName ?? 'Set up your profile';
             final initial =
                 name.isNotEmpty ? name[0].toUpperCase() : '?';
+            final hasBanking = user?.accountNumber != null &&
+                (user?.accountNumber?.isNotEmpty ?? false);
 
-            return FCard.raw(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(24),
+            return GestureDetector(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const EditProfileScreen())),
+              child: FCard.raw(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: colors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(initial,
+                            style: typo.lg.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w600)),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(initial,
-                          style: typo.lg.copyWith(
-                              color: colors.primary,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(name,
-                              style: typo.md.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.foreground)),
-                          if (email.isNotEmpty) ...[
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name,
+                                style: typo.md.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.foreground)),
                             const SizedBox(height: 2),
-                            Text(email,
-                                style: typo.xs
-                                    .copyWith(color: colors.mutedForeground)),
+                            Text(
+                              hasBanking
+                                  ? 'Banking info added'
+                                  : 'Tap to edit profile & banking',
+                              style: typo.xs
+                                  .copyWith(color: colors.mutedForeground),
+                            ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    Icon(FIcons.chevronRight,
-                        size: 18, color: colors.mutedForeground),
-                  ],
+                      Icon(FIcons.chevronRight,
+                          size: 18, color: colors.mutedForeground),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -152,7 +160,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               prefix: const Icon(FIcons.userPen),
               title: const Text('Edit profile'),
               suffix: const Icon(FIcons.chevronRight),
-              onPress: () {},
+              onPress: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const EditProfileScreen())),
             ),
             FTile(
               prefix: const Icon(FIcons.landmark),
