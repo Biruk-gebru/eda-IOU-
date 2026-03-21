@@ -1,27 +1,65 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
+class PaymentRequest {
+  final String id;
+  final String payerId;
+  final String receiverId;
+  final double amount;
+  final String? relatedTransactionId;
+  final String? groupId;
+  final String status;
+  final String? method;
+  final String? note;
+  final DateTime? createdAt;
+  final DateTime? confirmedAt;
+  final DateTime? timeoutAt;
 
-part 'payment_request.freezed.dart';
-part 'payment_request.g.dart';
+  const PaymentRequest({
+    required this.id,
+    required this.payerId,
+    required this.receiverId,
+    required this.amount,
+    this.relatedTransactionId,
+    this.groupId,
+    this.status = 'pending',
+    this.method,
+    this.note,
+    this.createdAt,
+    this.confirmedAt,
+    this.timeoutAt,
+  });
 
-@freezed
-class PaymentRequest with _$PaymentRequest {
-  const factory PaymentRequest({
-    required String id,
-    @JsonKey(name: 'payer_id') required String payerId,
-    @JsonKey(name: 'receiver_id') required String receiverId,
-    required double amount,
-    @JsonKey(name: 'related_transaction_id') String? relatedTransactionId,
-    @JsonKey(name: 'group_id') String? groupId,
-    @Default('pending') String status,
-    String? method,
-    String? note,
-    @JsonKey(name: 'created_at') DateTime? createdAt,
-    @JsonKey(name: 'confirmed_at') DateTime? confirmedAt,
-    @JsonKey(name: 'timeout_at') DateTime? timeoutAt,
-  }) = _PaymentRequest;
+  factory PaymentRequest.fromJson(Map<String, dynamic> json) => PaymentRequest(
+        id: json['id'] as String,
+        payerId: json['payer_id'] as String,
+        receiverId: json['receiver_id'] as String,
+        amount: (json['amount'] as num).toDouble(),
+        relatedTransactionId: json['related_transaction_id'] as String?,
+        groupId: json['group_id'] as String?,
+        status: json['status'] as String? ?? 'pending',
+        method: json['method'] as String?,
+        note: json['note'] as String?,
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'] as String)
+            : null,
+        confirmedAt: json['confirmed_at'] != null
+            ? DateTime.parse(json['confirmed_at'] as String)
+            : null,
+        timeoutAt: json['timeout_at'] != null
+            ? DateTime.parse(json['timeout_at'] as String)
+            : null,
+      );
 
-  factory PaymentRequest.fromJson(Map<String, dynamic> json) =>
-      _$PaymentRequestFromJson(json);
-
-  const PaymentRequest._();
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'payer_id': payerId,
+        'receiver_id': receiverId,
+        'amount': amount,
+        'related_transaction_id': relatedTransactionId,
+        'group_id': groupId,
+        'status': status,
+        'method': method,
+        'note': note,
+        'created_at': createdAt?.toIso8601String(),
+        'confirmed_at': confirmedAt?.toIso8601String(),
+        'timeout_at': timeoutAt?.toIso8601String(),
+      };
 }

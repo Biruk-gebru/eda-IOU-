@@ -7,6 +7,7 @@ import '../../../domain/entities/net_balance.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/user_providers.dart';
 import '../payments/create_payment_request_screen.dart';
+import '../settlements/settlement_screen.dart';
 
 class PersonalScreen extends ConsumerWidget {
   const PersonalScreen({super.key});
@@ -118,13 +119,32 @@ class PersonalScreen extends ConsumerWidget {
                 ],
               ),
 
-            const SizedBox(height: 24),
-            FButton(
-              variant: FButtonVariant.outline,
-              onPress: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const CreatePaymentRequestScreen())),
-              prefix: const Icon(FIcons.handCoins),
-              child: const Text('Settle up'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FButton(
+                    variant: FButtonVariant.outline,
+                    onPress: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const CreatePaymentRequestScreen())),
+                    prefix: const Icon(FIcons.handCoins),
+                    child: const Text('Pay'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FButton(
+                    variant: FButtonVariant.outline,
+                    onPress: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const SettlementScreen())),
+                    prefix: const Icon(FIcons.arrowRightLeft),
+                    child: const Text('Redirect'),
+                  ),
+                ),
+              ],
             ),
           ],
         );
