@@ -6,7 +6,6 @@ import 'package:forui/forui.dart';
 import '../core/providers/connectivity_provider.dart';
 import 'providers/auth_providers.dart';
 import 'providers/theme_provider.dart';
-import 'screens/auth/offline_login_screen.dart';
 import 'screens/auth/sign_in_screen.dart';
 import 'screens/main_shell.dart';
 import 'screens/setup/bank_info_screen.dart';
@@ -53,29 +52,38 @@ class AuthGate extends ConsumerWidget {
         backgroundColor: colors.background,
         body: Center(child: CircularProgressIndicator(color: colors.primary)),
       ),
-      error: (error, _) => FScaffold(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FAlert(
-                  variant: FAlertVariant.destructive,
-                  title: const Text('Session Error'),
-                  subtitle: Text(error.toString()),
-                ),
-                const SizedBox(height: 24),
-                FButton(
-                  variant: FButtonVariant.outline,
-                  onPress: () => ref.refresh(authSessionProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
+      error: (error, _) {
+        // If offline, let user into app with cached data
+        final isOffline = connectivityAsync.whenOrNull(
+              data: (r) => r.contains(ConnectivityResult.none),
+            ) ??
+            false;
+        if (isOffline) return const MainShell();
+
+        return FScaffold(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FAlert(
+                    variant: FAlertVariant.destructive,
+                    title: const Text('Session Error'),
+                    subtitle: Text(error.toString()),
+                  ),
+                  const SizedBox(height: 24),
+                  FButton(
+                    variant: FButtonVariant.outline,
+                    onPress: () => ref.refresh(authSessionProvider),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
       data: (session) {
         if (session != null) {
           final user = session.user;
@@ -86,19 +94,16 @@ class AuthGate extends ConsumerWidget {
           return const MainShell();
         }
 
-        return connectivityAsync.when(
-          data: (results) {
-            final isOffline = results.contains(ConnectivityResult.none);
-            if (isOffline) return const OfflineLoginScreen();
-            return const SignInScreen();
-          },
-          loading: () => Scaffold(
-            backgroundColor: colors.background,
-            body: Center(
-                child: CircularProgressIndicator(color: colors.primary)),
-          ),
-          error: (_, __) => const SignInScreen(),
-        );
+        // No session — check connectivity
+        final isOffline = connectivityAsync.whenOrNull(
+              data: (r) => r.contains(ConnectivityResult.none),
+            ) ??
+            false;
+
+        // If offline, let them in with cached data
+        if (isOffline) return const MainShell();
+
+        return const SignInScreen();
       },
     );
   }
