@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/net_balance.dart';
@@ -12,21 +13,18 @@ import '../settlements/settlement_screen.dart';
 class PersonalScreen extends ConsumerWidget {
   const PersonalScreen({super.key});
 
-  static final _fmt = NumberFormat.currency(symbol: 'ETB ');
+  static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
-    final colors = theme.colors;
-    final typo = theme.typography;
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
     final balancesAsync = ref.watch(balancesProvider);
     final balanceRepo = ref.watch(balanceRepositoryProvider);
-    final userAsync = ref.watch(currentUserProvider);
-    final userId = userAsync.whenOrNull(data: (u) => u?.id);
+    final userId = ref.watch(currentUserProvider).whenOrNull(data: (u) => u?.id);
 
     return balancesAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator.adaptive()),
+      loading: () => const Center(child: FCircularProgress()),
       error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -34,7 +32,7 @@ class PersonalScreen extends ConsumerWidget {
             Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
             const SizedBox(height: 12),
             Text('Failed to load balances',
-                style: typo.sm.copyWith(color: colors.destructive)),
+                style: typo.sm.copyWith(color: colors.mutedForeground)),
           ],
         ),
       ),
@@ -43,18 +41,23 @@ class PersonalScreen extends ConsumerWidget {
         final owed = balanceRepo.totalOwedToMe(balances);
 
         return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
           children: [
-            // Header
             Text('Personal',
-                style: typo.lg.copyWith(
-                    fontWeight: FontWeight.w600, color: colors.foreground)),
-            const SizedBox(height: 16),
+                style: GoogleFonts.outfit(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: colors.foreground,
+                )),
+            const SizedBox(height: 4),
+            Text('Your peer-to-peer balances',
+                style: typo.xs.copyWith(color: colors.mutedForeground)),
+            const SizedBox(height: 20),
 
-            // Summary card
+            // ── Summary card ─────────────────────────────────────────────────
             FCard.raw(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
                 child: Row(
                   children: [
                     Expanded(
@@ -62,30 +65,36 @@ class PersonalScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('You owe',
-                              style: typo.xs
-                                  .copyWith(color: colors.mutedForeground)),
-                          const SizedBox(height: 4),
-                          Text(_fmt.format(owe),
-                              style: typo.lg.copyWith(
-                                  color: colors.destructive,
-                                  fontWeight: FontWeight.bold)),
+                              style: typo.xs.copyWith(color: colors.mutedForeground)),
+                          const SizedBox(height: 6),
+                          Text(
+                            _fmt.format(owe),
+                            style: GoogleFonts.outfit(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: colors.destructive,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 36, color: colors.border),
-                    const SizedBox(width: 16),
+                    Container(width: 1, height: 40, color: colors.border),
+                    const SizedBox(width: 22),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('You are owed',
-                              style: typo.xs
-                                  .copyWith(color: colors.mutedForeground)),
-                          const SizedBox(height: 4),
-                          Text(_fmt.format(owed),
-                              style: typo.lg.copyWith(
-                                  color: colors.primary,
-                                  fontWeight: FontWeight.bold)),
+                          Text('Owed to you',
+                              style: typo.xs.copyWith(color: colors.mutedForeground)),
+                          const SizedBox(height: 6),
+                          Text(
+                            _fmt.format(owed),
+                            style: GoogleFonts.outfit(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF34D399),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -94,43 +103,18 @@ class PersonalScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // Net balances header
-            Text('Net balances',
-                style: typo.md.copyWith(
-                    fontWeight: FontWeight.w600, color: colors.foreground)),
-            const SizedBox(height: 12),
-
-            if (balances.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text('No balances yet',
-                      style: typo.sm
-                          .copyWith(color: colors.mutedForeground)),
-                ),
-              )
-            else
-              FTileGroup(
-                children: [
-                  for (final b in balances)
-                    _balanceTile(b, userId, colors, typo),
-                ],
-              ),
-
-            const SizedBox(height: 16),
+            // ── Action buttons ────────────────────────────────────────────────
             Row(
               children: [
                 Expanded(
                   child: FButton(
-                    variant: FButtonVariant.outline,
                     onPress: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                const CreatePaymentRequestScreen())),
+                      MaterialPageRoute(builder: (_) => const CreatePaymentRequestScreen()),
+                    ),
                     prefix: const Icon(FIcons.handCoins),
-                    child: const Text('Pay'),
+                    child: const Text('Send payment'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -138,26 +122,47 @@ class PersonalScreen extends ConsumerWidget {
                   child: FButton(
                     variant: FButtonVariant.outline,
                     onPress: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const SettlementScreen())),
+                      MaterialPageRoute(builder: (_) => const SettlementScreen()),
+                    ),
                     prefix: const Icon(FIcons.arrowRightLeft),
                     child: const Text('Redirect'),
                   ),
                 ),
               ],
             ),
+
+            const SizedBox(height: 28),
+
+            // ── Net balances ──────────────────────────────────────────────────
+            Text('Net balances',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                )),
+            const SizedBox(height: 12),
+
+            if (balances.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: Text('All settled up 🎉',
+                      style: typo.sm.copyWith(color: colors.mutedForeground)),
+                ),
+              )
+            else
+              FTileGroup(
+                children: [
+                  for (final b in balances) _balanceTile(b, userId, colors, typo),
+                ],
+              ),
           ],
         );
       },
     );
   }
 
-  FTile _balanceTile(
-    NetBalance b,
-    String? userId,
-    FColors colors,
-    FTypography typo,
-  ) {
+  FTile _balanceTile(NetBalance b, String? userId, FColors colors, FTypography typo) {
     final bool owes;
     final String otherId;
     if (userId == b.userA) {
@@ -168,16 +173,29 @@ class PersonalScreen extends ConsumerWidget {
       owes = b.netAmount < 0;
     }
     final amount = b.netAmount.abs();
-    final color = owes ? colors.destructive : colors.primary;
+    final color = owes ? colors.destructive : const Color(0xFF34D399);
     final label = owes ? 'You owe' : 'Owes you';
+    final shortId = otherId.substring(0, otherId.length.clamp(0, 6));
+    final initial = shortId.isNotEmpty ? shortId[0].toUpperCase() : '?';
 
     return FTile(
-      title: Text('User ${otherId.substring(0, otherId.length.clamp(0, 8))}'),
-      subtitle: Text(label),
-      details: Text(
-        _fmt.format(amount),
-        style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: color),
+      prefix: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colors.secondary,
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.border),
+        ),
+        alignment: Alignment.center,
+        child: Text(initial,
+            style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
       ),
+      title: Text('User $shortId…',
+          style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground)),
+      subtitle: Text(label, style: typo.xs.copyWith(color: colors.mutedForeground)),
+      details: Text(_fmt.format(amount),
+          style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: color)),
     );
   }
 }

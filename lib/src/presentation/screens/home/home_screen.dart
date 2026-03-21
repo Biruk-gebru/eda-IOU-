@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/transaction.dart';
@@ -15,75 +16,73 @@ import '../transactions/create_transaction_screen.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  static final _fmt = NumberFormat.currency(symbol: 'ETB ');
+  static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
-    final colors = theme.colors;
-    final typo = theme.typography;
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
 
-    final userAsync = ref.watch(currentUserProvider);
-    final name =
-        userAsync.whenOrNull(data: (u) => u?.displayName) ?? 'there';
-
+    final name = ref.watch(currentUserProvider).whenOrNull(data: (u) => u?.displayName) ?? 'there';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
     final unread = ref.watch(unreadCountProvider);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
       children: [
-        // Header
+        // ── Header ─────────────────────────────────────────────────────────
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Avatar
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: colors.secondary,
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.border),
+              ),
+              alignment: Alignment.center,
+              child: Text(initial,
+                  style: typo.sm.copyWith(
+                      color: colors.foreground, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Welcome back,',
-                    style: typo.sm.copyWith(color: colors.mutedForeground),
-                  ),
-                  const SizedBox(height: 2),
+                  Text('Welcome back',
+                      style: typo.xs.copyWith(color: colors.mutedForeground)),
                   Text(
                     name,
-                    style: typo.lg.copyWith(
-                      color: colors.foreground,
+                    style: GoogleFonts.outfit(
+                      fontSize: 17,
                       fontWeight: FontWeight.w600,
+                      color: colors.foreground,
                     ),
                   ),
                 ],
               ),
             ),
+            // Bell
             Stack(
               clipBehavior: Clip.none,
               children: [
                 IconButton(
-                  icon: Icon(FIcons.bell, color: colors.foreground),
+                  icon: Icon(FIcons.bell, color: colors.mutedForeground, size: 22),
                   onPressed: () => _open(context, const NotificationScreen()),
                 ),
                 if (unread > 0)
                   Positioned(
-                    right: 4,
-                    top: 4,
+                    right: 6,
+                    top: 6,
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
                         color: colors.destructive,
                         shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Text(
-                        unread > 99 ? '99+' : '$unread',
-                        style: typo.xs.copyWith(
-                          color: colors.destructiveForeground,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -92,14 +91,14 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
 
-        // Balance card
+        // ── Balance card ────────────────────────────────────────────────────
         _balanceCard(ref, colors, typo),
 
         const SizedBox(height: 16),
 
-        // Quick actions — two rows to avoid overflow
+        // ── Quick actions ───────────────────────────────────────────────────
         Row(
           children: [
             Expanded(
@@ -113,8 +112,7 @@ class HomeScreen extends ConsumerWidget {
             Expanded(
               child: FButton(
                 variant: FButtonVariant.outline,
-                onPress: () =>
-                    _open(context, const CreatePaymentRequestScreen()),
+                onPress: () => _open(context, const CreatePaymentRequestScreen()),
                 prefix: const Icon(FIcons.send),
                 child: const Text('Request'),
               ),
@@ -122,15 +120,20 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
-        // Recent transactions
-        Text(
-          'Recent transactions',
-          style: typo.md.copyWith(
-            fontWeight: FontWeight.w600,
-            color: colors.foreground,
-          ),
+        // ── Recent transactions header ──────────────────────────────────────
+        Row(
+          children: [
+            Text(
+              'Recent transactions',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: colors.foreground,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         _transactionList(context, ref, colors, typo),
@@ -145,16 +148,14 @@ class HomeScreen extends ConsumerWidget {
       loading: () => FCard.raw(
         child: const Padding(
           padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator.adaptive()),
+          child: Center(child: FCircularProgress()),
         ),
       ),
       error: (_, __) => FCard.raw(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: Text(
-            'Could not load balances',
-            style: typo.sm.copyWith(color: colors.destructive),
-          ),
+          child: Text('Could not load balances',
+              style: typo.sm.copyWith(color: colors.destructive)),
         ),
       ),
       data: (balances) {
@@ -169,7 +170,7 @@ class HomeScreen extends ConsumerWidget {
 
         return FCard.raw(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
             child: Row(
               children: [
                 Expanded(
@@ -177,34 +178,34 @@ class HomeScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('You owe',
-                          style: typo.xs
-                              .copyWith(color: colors.mutedForeground)),
-                      const SizedBox(height: 4),
+                          style: typo.xs.copyWith(color: colors.mutedForeground)),
+                      const SizedBox(height: 6),
                       Text(
                         _fmt.format(owe),
-                        style: typo.lg.copyWith(
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
                           color: colors.destructive,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(width: 1, height: 36, color: colors.border),
-                const SizedBox(width: 16),
+                Container(width: 1, height: 40, color: colors.border),
+                const SizedBox(width: 22),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('You are owed',
-                          style: typo.xs
-                              .copyWith(color: colors.mutedForeground)),
-                      const SizedBox(height: 4),
+                      Text('Owed to you',
+                          style: typo.xs.copyWith(color: colors.mutedForeground)),
+                      const SizedBox(height: 6),
                       Text(
                         _fmt.format(owed),
-                        style: typo.lg.copyWith(
-                          color: colors.primary,
-                          fontWeight: FontWeight.bold,
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF34D399),
                         ),
                       ),
                     ],
@@ -218,37 +219,35 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _transactionList(
-    BuildContext context,
-    WidgetRef ref,
-    FColors colors,
-    FTypography typo,
-  ) {
+  Widget _transactionList(BuildContext context, WidgetRef ref, FColors colors, FTypography typo) {
     final async = ref.watch(transactionListProvider);
 
     return async.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator.adaptive()),
+        child: Center(child: FCircularProgress()),
       ),
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('Error: $e',
-            style: typo.sm.copyWith(color: colors.destructive)),
+        child: Text('Error: $e', style: typo.sm.copyWith(color: colors.destructive)),
       ),
       data: (txs) {
         if (txs.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32),
+            padding: const EdgeInsets.symmetric(vertical: 40),
             child: Center(
-              child: Text(
-                'No transactions yet',
-                style: typo.sm.copyWith(color: colors.mutedForeground),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(FIcons.receipt, size: 40, color: colors.border),
+                  const SizedBox(height: 12),
+                  Text('No transactions yet',
+                      style: typo.sm.copyWith(color: colors.mutedForeground)),
+                ],
               ),
             ),
           );
         }
-
         return FTileGroup(
           children: [
             for (final tx in txs) _txTile(tx, colors, typo),
@@ -259,22 +258,25 @@ class HomeScreen extends ConsumerWidget {
   }
 
   FTile _txTile(Transaction tx, FColors colors, FTypography typo) {
-    final date = tx.createdAt != null
-        ? DateFormat('MMM d').format(tx.createdAt!)
-        : '';
-
+    final date = tx.createdAt != null ? DateFormat('MMM d').format(tx.createdAt!) : '';
     return FTile(
-      title: Text(tx.description ?? 'Transaction'),
-      subtitle: Text(date),
-      prefix: const Icon(FIcons.receipt),
+      title: Text(tx.description ?? 'Transaction',
+          style: typo.sm.copyWith(fontWeight: FontWeight.w500)),
+      subtitle: Text(date, style: typo.xs.copyWith(color: colors.mutedForeground)),
+      prefix: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colors.secondary,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(FIcons.receipt, size: 16, color: colors.mutedForeground),
+      ),
       details: Text(
         _fmt.format(tx.totalAmount),
-        style: typo.sm.copyWith(
-          fontWeight: FontWeight.w600,
-          color: colors.foreground,
-        ),
+        style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
       ),
-      suffix: const Icon(FIcons.chevronRight),
+      suffix: Icon(FIcons.chevronRight, size: 14, color: colors.border),
     );
   }
 

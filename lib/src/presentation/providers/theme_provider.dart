@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 
+import '../app_theme.dart';
+
 enum AppThemeMode { system, light, dark }
 
 final themeModeProvider =
@@ -13,5 +15,5 @@ FThemeData resolveTheme(AppThemeMode mode, Brightness platformBrightness) {
     AppThemeMode.light => false,
     AppThemeMode.system => platformBrightness == Brightness.dark,
   };
-  return isDark ? FThemes.zinc.dark.touch : FThemes.zinc.light.touch;
+  return buildFTheme(isDark: isDark);
 }

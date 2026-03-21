@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 
@@ -13,12 +12,10 @@ class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
 
   @override
-  ConsumerState<CreateTransactionScreen> createState() =>
-      _CreateTransactionScreenState();
+  ConsumerState<CreateTransactionScreen> createState() => _CreateTransactionScreenState();
 }
 
-class _CreateTransactionScreenState
-    extends ConsumerState<CreateTransactionScreen> {
+class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScreen> {
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
 
@@ -38,189 +35,147 @@ class _CreateTransactionScreenState
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
     final groupsAsync = ref.watch(groupListProvider);
 
     return FScaffold(
       header: FHeader.nested(
         title: const Text('New Transaction'),
-        prefixes: [
-          FHeaderAction.back(
-            onPress: () => Navigator.of(context).pop(),
-          ),
-        ],
+        prefixes: [FHeaderAction.back(onPress: () => Navigator.of(context).pop())],
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Split type toggle: Group vs Personal
-            Row(
-              children: [
-                Expanded(
-                  child: FButton(
-                    variant:
-                        _isGroupExpense ? FButtonVariant.primary : FButtonVariant.outline,
-                    onPress: () => setState(() => _isGroupExpense = true),
-                    prefix: const Icon(Icons.groups_outlined),
-                    child: const Text('Group'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FButton(
-                    variant:
-                        !_isGroupExpense ? FButtonVariant.primary : FButtonVariant.outline,
-                    onPress: () => setState(() {
-                      _isGroupExpense = false;
-                      _selectedGroup = null;
-                      _participants = [];
-                    }),
-                    prefix: const Icon(Icons.person_outline),
-                    child: const Text('Personal'),
-                  ),
-                ),
-              ],
+            // ── Type toggle: Group / Personal ─────────────────────────────
+            _sectionLabel('TYPE', colors, typo),
+            const SizedBox(height: 10),
+            Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: colors.secondary,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: colors.border),
+              ),
+              child: Row(
+                children: [
+                  _typeTab('Group', _isGroupExpense, FIcons.users,
+                      () => setState(() => _isGroupExpense = true), colors, typo),
+                  _typeTab('Personal', !_isGroupExpense, FIcons.user,
+                      () => setState(() { _isGroupExpense = false; _selectedGroup = null; _participants = []; }),
+                      colors, typo),
+                ],
+              ),
             ),
+
             const SizedBox(height: 20),
 
-            // Group selector
+            // ── Group selector ────────────────────────────────────────────
             if (_isGroupExpense) ...[
+              _sectionLabel('SELECT GROUP', colors, typo),
+              const SizedBox(height: 10),
               groupsAsync.when(
                 data: (groups) {
                   if (groups.isEmpty) {
-                    return FCard(
-                      title: const Text('No groups'),
-                      subtitle: const Text(
-                          'Create or join a group first to make group transactions.'),
+                    return FAlert(
+                      icon: const Icon(FIcons.info),
+                      title: const Text('No groups yet'),
+                      subtitle: const Text('Create a group first to make group transactions.'),
                     );
                   }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  return FTileGroup(
                     children: [
-                      Text(
-                        'Select Group',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      ...groups.map(
-                        (group) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: FTile(
-                            title: Text(group.name),
-                            subtitle: group.description != null
-                                ? Text(group.description!)
-                                : null,
-                            selected: _selectedGroup?.id == group.id,
-                            onPress: () {
-                              setState(() => _selectedGroup = group);
-                              _loadGroupMembers(group.id);
-                            },
-                            suffix: _selectedGroup?.id == group.id
-                                ? const Icon(Icons.check_circle,
-                                    color: Color(0xFF00BFA5))
-                                : null,
-                          ),
+                      for (final group in groups)
+                        FTile(
+                          prefix: _avatarCircle(group.name, colors, typo),
+                          title: Text(group.name),
+                          subtitle: group.description != null ? Text(group.description!) : null,
+                          selected: _selectedGroup?.id == group.id,
+                          suffix: _selectedGroup?.id == group.id
+                              ? Icon(FIcons.check, size: 16, color: colors.foreground)
+                              : Icon(FIcons.chevronRight, size: 14, color: colors.border),
+                          onPress: () { setState(() => _selectedGroup = group); _loadGroupMembers(group.id); },
                         ),
-                      ),
                     ],
                   );
                 },
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                error: (e, _) => FCard(
+                loading: () => const Center(child: FCircularProgress()),
+                error: (e, _) => FAlert(
+                  variant: FAlertVariant.destructive,
+                  icon: const Icon(FIcons.circleAlert),
                   title: const Text('Error loading groups'),
-                  subtitle: Text('$e'),
                 ),
               ),
               const SizedBox(height: 20),
             ],
 
-            // Description field
+            // ── Description ───────────────────────────────────────────────
+            _sectionLabel('DESCRIPTION', colors, typo),
+            const SizedBox(height: 10),
             FTextField(
-              control: FTextFieldControl.managed(
-                controller: _descriptionController,
-              ),
-              label: const Text('Description'),
+              control: FTextFieldControl.managed(controller: _descriptionController),
               hint: 'e.g. Dinner at restaurant',
+              prefixBuilder: (context, style, variants) =>
+                  FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.fileText)),
             ),
+
             const SizedBox(height: 16),
 
-            // Amount field
+            // ── Amount ─────────────────────────────────────────────────────
+            _sectionLabel('AMOUNT (ETB)', colors, typo),
+            const SizedBox(height: 10),
             FTextField(
-              control: FTextFieldControl.managed(
-                controller: _amountController,
-              ),
-              label: const Text('Total Amount (ETB)'),
+              control: FTextFieldControl.managed(controller: _amountController),
               hint: '0.00',
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-              ],
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+              prefixBuilder: (context, style, variants) =>
+                  FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.coins)),
             ),
-            const SizedBox(height: 20),
 
-            // Equal/custom split toggle
+            const SizedBox(height: 16),
+
+            // ── Split ──────────────────────────────────────────────────────
             FSwitch(
               label: const Text('Custom split'),
-              description: const Text('Toggle for unequal distribution'),
+              description: const Text('Toggle for unequal amounts'),
               value: _customSplit,
-              onChange: (value) => setState(() => _customSplit = value),
+              onChange: (v) => setState(() => _customSplit = v),
             ),
-            const SizedBox(height: 16),
 
-            // Participants list
+            // ── Participants ───────────────────────────────────────────────
             if (_participants.isNotEmpty) ...[
-              Text(
-                'Participants',
-                style: Theme.of(context).textTheme.titleSmall,
+              const SizedBox(height: 20),
+              _sectionLabel('PARTICIPANTS', colors, typo),
+              const SizedBox(height: 10),
+              FTileGroup(
+                children: [for (final p in _participants) _participantTile(p, colors, typo)],
               ),
-              const SizedBox(height: 8),
-              ..._participants.map((p) => _buildParticipantRow(p)),
-              const SizedBox(height: 16),
             ],
 
-            // Approval rules info card
-            FCard(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.rule, color: Colors.grey[600]),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Majority of included participants must approve within 48h. '
-                        'Auto-cancels if no response.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Submit button
+            // ── Approval rules info ────────────────────────────────────────
+            FAlert(
+              icon: const Icon(FIcons.info),
+              title: const Text('Auto-approval rules'),
+              subtitle: const Text(
+                  'Majority of participants must approve within 48 h. Auto-cancels if no response.'),
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── Submit ────────────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               child: FButton(
                 onPress: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Submit for Approval'),
+                prefix: _isSubmitting
+                    ? const SizedBox(width: 18, height: 18, child: FCircularProgress())
+                    : const Icon(FIcons.send),
+                child: const Text('Submit for approval'),
               ),
             ),
           ],
@@ -229,198 +184,152 @@ class _CreateTransactionScreenState
     );
   }
 
-  Widget _buildParticipantRow(_ParticipantEntry participant) {
-    final amountController = TextEditingController(
-      text: participant.customAmount?.toStringAsFixed(2) ?? '',
-    );
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: FTile(
-        title: Text(participant.displayName),
-        subtitle: _customSplit
-            ? SizedBox(
-                width: 100,
-                height: 36,
-                child: TextField(
-                  controller: amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    hintText: 'Amount',
-                    isDense: true,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  ),
-                  onChanged: (value) {
-                    participant.customAmount = double.tryParse(value);
-                  },
-                ),
-              )
-            : Text(participant.isPayer ? 'Payer' : 'Equal split'),
-        prefix: FCheckbox(
-          value: participant.included,
-          onChange: (value) {
-            setState(() {
-              participant.included = value;
-            });
-          },
+  Widget _typeTab(String label, bool selected, IconData icon, VoidCallback onTap, FColors colors, FTypography typo) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: selected ? colors.card : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+            boxShadow: selected
+                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1))]
+                : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: selected ? colors.foreground : colors.mutedForeground),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: typo.sm.copyWith(
+                    color: selected ? colors.foreground : colors.mutedForeground,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  )),
+            ],
+          ),
         ),
-        suffix: participant.isPayer
-            ? const Icon(Icons.account_balance_wallet_outlined,
-                color: Color(0xFF00BFA5))
-            : null,
       ),
     );
   }
+
+  FTile _participantTile(_ParticipantEntry p, FColors colors, FTypography typo) {
+    final amountCtl = TextEditingController(text: p.customAmount?.toStringAsFixed(2) ?? '');
+    return FTile(
+      prefix: FCheckbox(
+        value: p.included,
+        onChange: (v) => setState(() => p.included = v),
+      ),
+      title: Text(p.displayName, style: typo.sm.copyWith(fontWeight: FontWeight.w500)),
+      subtitle: _customSplit
+          ? SizedBox(
+              width: 110,
+              height: 36,
+              child: TextField(
+                controller: amountCtl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: typo.sm.copyWith(color: colors.foreground),
+                decoration: InputDecoration(
+                  hintText: 'Amount',
+                  hintStyle: typo.sm.copyWith(color: colors.mutedForeground),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                ),
+                onChanged: (v) => p.customAmount = double.tryParse(v),
+              ),
+            )
+          : Text(p.isPayer ? 'Payer' : 'Equal split',
+              style: typo.xs.copyWith(color: colors.mutedForeground)),
+      suffix: p.isPayer ? Icon(FIcons.wallet, size: 14, color: colors.mutedForeground) : null,
+    );
+  }
+
+  Widget _avatarCircle(String name, FColors colors, FTypography typo) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: colors.secondary,
+        shape: BoxShape.circle,
+        border: Border.all(color: colors.border),
+      ),
+      alignment: Alignment.center,
+      child: Text(initial, style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+    );
+  }
+
+  Widget _sectionLabel(String text, FColors colors, FTypography typo) => Text(
+        text,
+        style: typo.xs.copyWith(
+          fontWeight: FontWeight.w600,
+          color: colors.mutedForeground,
+          letterSpacing: 0.8,
+        ),
+      );
 
   Future<void> _loadGroupMembers(String groupId) async {
     try {
       final members = await ref.read(groupMembersProvider(groupId).future);
       final client = ref.read(supabaseClientProvider);
       final currentUserId = client.auth.currentUser?.id;
-
       final entries = <_ParticipantEntry>[];
       for (final member in members) {
-        // Try to fetch display name from profiles
         String displayName = 'User';
         try {
-          final profile = await client
-              .from('profiles')
-              .select('display_name')
-              .eq('id', member.userId)
-              .maybeSingle();
-          if (profile != null && profile['display_name'] != null) {
-            displayName = profile['display_name'] as String;
-          }
-        } catch (_) {
-          // Use fallback
-        }
-
+          final profile = await client.from('profiles').select('display_name').eq('id', member.userId).maybeSingle();
+          if (profile != null && profile['display_name'] != null) displayName = profile['display_name'] as String;
+        } catch (_) {}
         final isPayer = member.userId == currentUserId;
-        if (isPayer) {
-          displayName = 'You';
-        }
-
-        entries.add(_ParticipantEntry(
-          userId: member.userId,
-          displayName: displayName,
-          isPayer: isPayer,
-        ));
+        if (isPayer) displayName = 'You';
+        entries.add(_ParticipantEntry(userId: member.userId, displayName: displayName, isPayer: isPayer));
       }
-
       setState(() => _participants = entries);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading members: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   Future<void> _submit() async {
     final description = _descriptionController.text.trim();
     final amountText = _amountController.text.trim();
-
-    if (description.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a description')),
-      );
-      return;
-    }
-
+    if (description.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a description'))); return; }
     final totalAmount = double.tryParse(amountText);
-    if (totalAmount == null || totalAmount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount')),
-      );
-      return;
-    }
-
+    if (totalAmount == null || totalAmount <= 0) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid amount'))); return; }
     final client = ref.read(supabaseClientProvider);
     final currentUserId = client.auth.currentUser?.id;
-    if (currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not authenticated')),
-      );
-      return;
-    }
-
-    final includedParticipants =
-        _participants.where((p) => p.included).toList();
-
-    // Build participant maps
-    final participantMaps = <Map<String, dynamic>>[];
+    if (currentUserId == null) return;
+    final included = _participants.where((p) => p.included).toList();
+    final maps = <Map<String, dynamic>>[];
     if (_customSplit) {
-      for (final p in includedParticipants) {
-        participantMaps.add({
-          'user_id': p.userId,
-          'amount_due': p.customAmount ?? 0.0,
-        });
-      }
+      for (final p in included) maps.add({'user_id': p.userId, 'amount_due': p.customAmount ?? 0.0});
     } else {
-      final splitAmount = includedParticipants.isNotEmpty
-          ? totalAmount / includedParticipants.length
-          : totalAmount;
-      for (final p in includedParticipants) {
-        participantMaps.add({
-          'user_id': p.userId,
-          'amount_due': splitAmount,
-        });
-      }
+      final split = included.isNotEmpty ? totalAmount / included.length : totalAmount;
+      for (final p in included) maps.add({'user_id': p.userId, 'amount_due': split});
     }
-
-    // If no group participants, add self as the only participant
-    if (participantMaps.isEmpty) {
-      participantMaps.add({
-        'user_id': currentUserId,
-        'amount_due': totalAmount,
-      });
-    }
-
+    if (maps.isEmpty) maps.add({'user_id': currentUserId, 'amount_due': totalAmount});
     setState(() => _isSubmitting = true);
-
     try {
-      final repository = ref.read(transactionRepositoryProvider);
-      await repository.createTransaction(
-        groupId: _selectedGroup?.id,
-        payerId: currentUserId,
-        totalAmount: totalAmount,
-        description: description,
-        participants: participantMaps,
-      );
-
-      // Invalidate transaction list cache
+      await ref.read(transactionRepositoryProvider).createTransaction(
+          groupId: _selectedGroup?.id, payerId: currentUserId, totalAmount: totalAmount, description: description, participants: maps);
       ref.invalidate(transactionListProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaction created successfully')),
-        );
-        Navigator.of(context).pop();
-      }
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction created'))); Navigator.of(context).pop(); }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating transaction: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 }
 
 class _ParticipantEntry {
-  _ParticipantEntry({
-    required this.userId,
-    required this.displayName,
-    this.isPayer = false,
-  });
-
+  _ParticipantEntry({required this.userId, required this.displayName, this.isPayer = false});
   final String userId;
   final String displayName;
   final bool isPayer;
