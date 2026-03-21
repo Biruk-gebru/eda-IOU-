@@ -10,9 +10,9 @@ final groupRepositoryProvider = Provider<GroupRepository>((ref) {
   return GroupRepository(client);
 });
 
-final groupListProvider = StreamProvider<List<Group>>((ref) {
+final groupListProvider = FutureProvider<List<Group>>((ref) async {
   final repository = ref.watch(groupRepositoryProvider);
-  return repository.watchGroups();
+  return repository.getGroups();
 });
 
 final groupDetailProvider =
