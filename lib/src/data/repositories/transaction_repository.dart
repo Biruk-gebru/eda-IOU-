@@ -15,6 +15,32 @@ class TransactionRepository {
 
   String get _userId => _client.auth.currentUser!.id;
 
+  /// Calls the Supabase RPC to cancel any pending transactions whose
+  /// timeout_at has passed. Returns the number of cancelled transactions.
+  ///
+  /// Note: For server-side automation, enable pg_cron in the Supabase dashboard
+  /// and schedule hourly execution:
+  ///   SELECT cron.schedule(
+  ///     'cancel-expired-transactions',
+  ///     '0 * * * *',
+  ///     $$SELECT auto_cancel_expired_transactions()$$
+  ///   );
+  ///   SELECT cron.schedule(
+  ///     'expire-payment-requests',
+  ///     '0 * * * *',
+  ///     $$SELECT auto_expire_payment_requests()$$
+  ///   );
+  Future<int> checkAndCancelExpired() async {
+    try {
+      final result =
+          await _client.rpc('auto_cancel_expired_transactions');
+      return (result as int?) ?? 0;
+    } catch (e) {
+      // Non-critical — don't block the fetch if cleanup fails
+      return 0;
+    }
+  }
+
   Future<List<Transaction>> getTransactions() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     final isOffline = connectivityResult.contains(ConnectivityResult.none);
@@ -23,6 +49,9 @@ class TransactionRepository {
       return _getLocalTransactions();
     } else {
       try {
+        // Cancel expired transactions before fetching
+        await checkAndCancelExpired();
+
         final data = await _client
             .from('transactions')
             .select()

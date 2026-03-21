@@ -1,20 +1,33 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
+class NetBalance {
+  final String id;
+  final String userA;
+  final String userB;
+  final double netAmount;
+  final DateTime? lastUpdated;
 
-part 'net_balance.freezed.dart';
-part 'net_balance.g.dart';
+  const NetBalance({
+    required this.id,
+    required this.userA,
+    required this.userB,
+    required this.netAmount,
+    this.lastUpdated,
+  });
 
-@freezed
-class NetBalance with _$NetBalance {
-  const factory NetBalance({
-    required String id,
-    @JsonKey(name: 'user_a') required String userA,
-    @JsonKey(name: 'user_b') required String userB,
-    @JsonKey(name: 'net_amount') required double netAmount,
-    @JsonKey(name: 'last_updated') DateTime? lastUpdated,
-  }) = _NetBalance;
+  factory NetBalance.fromJson(Map<String, dynamic> json) => NetBalance(
+        id: json['id'] as String,
+        userA: json['user_a'] as String,
+        userB: json['user_b'] as String,
+        netAmount: (json['net_amount'] as num).toDouble(),
+        lastUpdated: json['last_updated'] != null
+            ? DateTime.parse(json['last_updated'] as String)
+            : null,
+      );
 
-  factory NetBalance.fromJson(Map<String, dynamic> json) =>
-      _$NetBalanceFromJson(json);
-
-  const NetBalance._();
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'user_a': userA,
+        'user_b': userB,
+        'net_amount': netAmount,
+        'last_updated': lastUpdated?.toIso8601String(),
+      };
 }

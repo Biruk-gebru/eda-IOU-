@@ -1,20 +1,33 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
+class ApprovalLog {
+  final String id;
+  final String transactionId;
+  final String userId;
+  final String action;
+  final DateTime? createdAt;
 
-part 'approval_log.freezed.dart';
-part 'approval_log.g.dart';
+  const ApprovalLog({
+    required this.id,
+    required this.transactionId,
+    required this.userId,
+    required this.action,
+    this.createdAt,
+  });
 
-@freezed
-class ApprovalLog with _$ApprovalLog {
-  const factory ApprovalLog({
-    required String id,
-    @JsonKey(name: 'transaction_id') required String transactionId,
-    @JsonKey(name: 'user_id') required String userId,
-    required String action,
-    @JsonKey(name: 'created_at') DateTime? createdAt,
-  }) = _ApprovalLog;
+  factory ApprovalLog.fromJson(Map<String, dynamic> json) => ApprovalLog(
+        id: json['id'] as String,
+        transactionId: json['transaction_id'] as String,
+        userId: json['user_id'] as String,
+        action: json['action'] as String,
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'] as String)
+            : null,
+      );
 
-  factory ApprovalLog.fromJson(Map<String, dynamic> json) =>
-      _$ApprovalLogFromJson(json);
-
-  const ApprovalLog._();
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'transaction_id': transactionId,
+        'user_id': userId,
+        'action': action,
+        'created_at': createdAt?.toIso8601String(),
+      };
 }

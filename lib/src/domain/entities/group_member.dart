@@ -1,20 +1,33 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
+class GroupMember {
+  final String id;
+  final String groupId;
+  final String userId;
+  final String role;
+  final DateTime? joinedAt;
 
-part 'group_member.freezed.dart';
-part 'group_member.g.dart';
+  const GroupMember({
+    required this.id,
+    required this.groupId,
+    required this.userId,
+    this.role = 'member',
+    this.joinedAt,
+  });
 
-@freezed
-class GroupMember with _$GroupMember {
-  const factory GroupMember({
-    required String id,
-    @JsonKey(name: 'group_id') required String groupId,
-    @JsonKey(name: 'user_id') required String userId,
-    @Default('member') String role,
-    @JsonKey(name: 'joined_at') DateTime? joinedAt,
-  }) = _GroupMember;
+  factory GroupMember.fromJson(Map<String, dynamic> json) => GroupMember(
+        id: json['id'] as String,
+        groupId: json['group_id'] as String,
+        userId: json['user_id'] as String,
+        role: json['role'] as String? ?? 'member',
+        joinedAt: json['joined_at'] != null
+            ? DateTime.parse(json['joined_at'] as String)
+            : null,
+      );
 
-  factory GroupMember.fromJson(Map<String, dynamic> json) =>
-      _$GroupMemberFromJson(json);
-
-  const GroupMember._();
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'group_id': groupId,
+        'user_id': userId,
+        'role': role,
+        'joined_at': joinedAt?.toIso8601String(),
+      };
 }
