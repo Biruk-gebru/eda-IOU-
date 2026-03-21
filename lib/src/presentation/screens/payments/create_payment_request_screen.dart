@@ -8,17 +8,17 @@ class CreatePaymentRequestScreen extends ConsumerStatefulWidget {
   const CreatePaymentRequestScreen({super.key});
 
   @override
-  ConsumerState<CreatePaymentRequestScreen> createState() =>
-      _CreatePaymentRequestScreenState();
+  ConsumerState<CreatePaymentRequestScreen> createState() => _CreatePaymentRequestScreenState();
 }
 
-class _CreatePaymentRequestScreenState
-    extends ConsumerState<CreatePaymentRequestScreen> {
+class _CreatePaymentRequestScreenState extends ConsumerState<CreatePaymentRequestScreen> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
   final _receiverIdController = TextEditingController();
   String _selectedMethod = 'Bank transfer';
   bool _isSubmitting = false;
+
+  static const _methods = ['Bank transfer', 'Mobile money', 'Cash'];
 
   @override
   void dispose() {
@@ -31,132 +31,118 @@ class _CreatePaymentRequestScreenState
   Future<void> _submit() async {
     final amountText = _amountController.text.trim();
     final receiverId = _receiverIdController.text.trim();
-
     if (amountText.isEmpty || receiverId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Amount and receiver are required')),
-      );
+          const SnackBar(content: Text('Amount and receiver are required')));
       return;
     }
-
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid amount')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
       return;
     }
-
     setState(() => _isSubmitting = true);
-
     try {
-      final repository = ref.read(paymentRepositoryProvider);
-      await repository.createPaymentRequest(
-        receiverId: receiverId,
-        amount: amount,
-        method: _selectedMethod,
-        note: _noteController.text.trim().isEmpty
-            ? null
-            : _noteController.text.trim(),
-      );
-
+      await ref.read(paymentRepositoryProvider).createPaymentRequest(
+            receiverId: receiverId,
+            amount: amount,
+            method: _selectedMethod,
+            note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+          );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment request sent')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Payment request sent')));
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
     return FScaffold(
       header: FHeader.nested(
         title: const Text('Request Payment'),
-        prefixes: [
-          FHeaderAction(
-            icon: const Icon(FIcons.chevronLeft),
-            onPress: () => Navigator.of(context).pop(),
-          ),
-        ],
+        prefixes: [FHeaderAction.back(onPress: () => Navigator.of(context).pop())],
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Receiver ──────────────────────────────────────────────────
+            _label('RECEIVER', colors, typo),
+            const SizedBox(height: 10),
             FTextField(
-              control: FTextFieldControl.managed(
-                controller: _receiverIdController,
-              ),
-              label: const Text('Receiver ID'),
-              hint: 'Enter the receiver user ID',
+              control: FTextFieldControl.managed(controller: _receiverIdController),
+              hint: 'User ID of the person who owes you',
               enabled: !_isSubmitting,
+              prefixBuilder: (context, style, variants) =>
+                  FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.user)),
             ),
-            const SizedBox(height: 16),
+
+            const SizedBox(height: 20),
+
+            // ── Amount ───────────────────────────────────────────────────
+            _label('AMOUNT (ETB)', colors, typo),
+            const SizedBox(height: 10),
             FTextField(
-              control: FTextFieldControl.managed(
-                controller: _amountController,
-              ),
-              label: const Text('Amount (ETB)'),
-              hint: 'e.g. 500.00',
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              control: FTextFieldControl.managed(controller: _amountController),
+              hint: '0.00',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               enabled: !_isSubmitting,
+              prefixBuilder: (context, style, variants) =>
+                  FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.coins)),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Preferred Method',
-              style: context.theme.typography.sm.copyWith(
-                fontWeight: FontWeight.w600,
-                color: context.theme.colors.foreground,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+
+            const SizedBox(height: 20),
+
+            // ── Payment method ────────────────────────────────────────────
+            _label('PAYMENT METHOD', colors, typo),
+            const SizedBox(height: 10),
+            Row(
               children: [
-                _methodChip('Bank transfer'),
-                _methodChip('Mobile money'),
-                _methodChip('Cash'),
+                for (int i = 0; i < _methods.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(
+                    child: _methodChip(_methods[i], colors, typo),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 16),
+
+            const SizedBox(height: 20),
+
+            // ── Note ──────────────────────────────────────────────────────
+            _label('NOTE (OPTIONAL)', colors, typo),
+            const SizedBox(height: 10),
             FTextField(
-              control: FTextFieldControl.managed(
-                controller: _noteController,
-              ),
-              label: const Text('Note (optional)'),
+              control: FTextFieldControl.managed(controller: _noteController),
               hint: 'Add any extra instructions',
               minLines: 2,
               maxLines: 4,
               enabled: !_isSubmitting,
             ),
-            const SizedBox(height: 24),
-            FButton(
-              onPress: _isSubmitting ? null : _submit,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Send Request'),
+
+            const SizedBox(height: 28),
+
+            // ── Submit ────────────────────────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: FButton(
+                onPress: _isSubmitting ? null : _submit,
+                prefix: _isSubmitting
+                    ? const SizedBox(width: 18, height: 18, child: FCircularProgress())
+                    : const Icon(FIcons.send),
+                child: const Text('Send request'),
+              ),
             ),
           ],
         ),
@@ -164,35 +150,39 @@ class _CreatePaymentRequestScreenState
     );
   }
 
-  Widget _methodChip(String method) {
+  Widget _methodChip(String method, FColors colors, FTypography typo) {
     final selected = _selectedMethod == method;
     return GestureDetector(
-      onTap: _isSubmitting
-          ? null
-          : () => setState(() => _selectedMethod = method),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      onTap: _isSubmitting ? null : () => setState(() => _selectedMethod = method),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected
-              ? context.theme.colors.primary
-              : context.theme.colors.background,
+          color: selected ? colors.card : colors.secondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected
-                ? context.theme.colors.primary
-                : context.theme.colors.border,
+            color: selected ? colors.foreground.withValues(alpha: 0.3) : colors.border,
           ),
         ),
+        alignment: Alignment.center,
         child: Text(
           method,
-          style: TextStyle(
-            color: selected
-                ? context.theme.colors.primaryForeground
-                : context.theme.colors.foreground,
-            fontSize: 13,
+          style: typo.xs.copyWith(
+            color: selected ? colors.foreground : colors.mutedForeground,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
+          textAlign: TextAlign.center,
         ),
       ),
     );
   }
+
+  Widget _label(String text, FColors colors, FTypography typo) => Text(
+        text,
+        style: typo.xs.copyWith(
+          fontWeight: FontWeight.w600,
+          color: colors.mutedForeground,
+          letterSpacing: 0.8,
+        ),
+      );
 }
