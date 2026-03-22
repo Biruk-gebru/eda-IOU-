@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 
@@ -389,7 +390,14 @@ class _MembersTab extends ConsumerWidget {
                       ),
                     ),
                     FButton.icon(
-                      onPress: () => Navigator.of(sheetContext).pop(),
+                      onPress: () {
+                        Clipboard.setData(ClipboardData(
+                            text: 'https://eda.app/invite/$groupId'));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Link copied')),
+                        );
+                        Navigator.of(sheetContext).pop();
+                      },
                       child: const Icon(FIcons.copy),
                     ),
                   ],
