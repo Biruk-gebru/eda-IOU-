@@ -109,9 +109,9 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Banking info (if they owe you or you owe them)
-          if (widget.iOwe && _bankAccounts.isNotEmpty) ...[
-            _label('PAY USING', colors, typo),
+          // Banking info — always show if available
+          if (_bankAccounts.isNotEmpty) ...[
+            _label(widget.iOwe ? 'PAY USING' : 'THEIR BANKING INFO', colors, typo),
             const SizedBox(height: 10),
             FTileGroup(
               children: [
@@ -143,7 +143,7 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
               'Copy the account details above to pay via your banking app',
               style: typo.xs.copyWith(color: colors.mutedForeground),
             ),
-          ] else if (widget.iOwe && _bankAccounts.isEmpty && _loaded) ...[
+          ] else if (_bankAccounts.isEmpty && _loaded) ...[
             FAlert(
               icon: const Icon(FIcons.info),
               title: const Text('No banking info'),
