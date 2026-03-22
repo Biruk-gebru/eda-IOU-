@@ -368,11 +368,46 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
           );
       ref.invalidate(transactionListProvider);
       if (mounted) {
-        _snack('Transaction created');
-        Navigator.of(context).pop();
+        // Show success dialog then pop
+        await showFDialog(
+          context: context,
+          builder: (ctx, style, animation) => FDialog(
+            animation: animation,
+            title: const Text('Transaction sent'),
+            body: Text(
+              '$description — ETB ${totalAmount.toStringAsFixed(2)}\n'
+              'Waiting for ${others.length} participant${others.length > 1 ? "s" : ""} to approve.',
+            ),
+            actions: [
+              FButton(
+                onPress: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Done'),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
-      if (mounted) _snack('Error: $e');
+      if (mounted) {
+        await showFDialog(
+          context: context,
+          builder: (ctx, style, animation) => FDialog(
+            animation: animation,
+            title: const Text('Failed to create'),
+            body: Text('$e'),
+            actions: [
+              FButton(
+                variant: FButtonVariant.outline,
+                onPress: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
