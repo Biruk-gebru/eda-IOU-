@@ -359,58 +359,214 @@ class _MembersTab extends ConsumerWidget {
   void _showInviteSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Invite via link',
-              style: context.theme.typography.lg.copyWith(
-                fontWeight: FontWeight.w600,
+      builder: (_) => _AddMemberSheet(groupId: groupId),
+    );
+  }
+}
+
+class _AddMemberSheet extends ConsumerStatefulWidget {
+  const _AddMemberSheet({required this.groupId});
+  final String groupId;
+
+  @override
+  ConsumerState<_AddMemberSheet> createState() => _AddMemberSheetState();
+}
+
+class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
+  final _searchController = TextEditingController();
+  List<Map<String, dynamic>> _results = [];
+  bool _searching = false;
+  bool _adding = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    if (query.length < 2) {
+      setState(() => _results = []);
+      return;
+    }
+
+    setState(() => _searching = true);
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final currentUserId = client.auth.currentUser?.id;
+
+      // Search by display_name (case-insensitive)
+      final data = await client
+          .from('profiles')
+          .select('id, display_name')
+          .ilike('display_name', '%$query%')
+          .neq('id', currentUserId ?? '')
+          .limit(10);
+
+      // Filter out existing members
+      final members =
+          await ref.read(groupMembersProvider(widget.groupId).future);
+      final memberIds = members.map((m) => m.userId).toSet();
+
+      setState(() {
+        _results = (data as List)
+            .where((p) => !memberIds.contains(p['id']))
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Search error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _addMember(String userId, String name) async {
+    setState(() => _adding = true);
+    try {
+      await ref
+          .read(groupRepositoryProvider)
+          .addMember(widget.groupId, userId);
+      ref.invalidate(groupMembersProvider(widget.groupId));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$name added')));
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.border,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            FCard.raw(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+          ),
+          const SizedBox(height: 16),
+          Text('Add member',
+              style: typo.lg
+                  .copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+          const SizedBox(height: 4),
+          Text('Search by name to add someone to this group',
+              style: typo.sm.copyWith(color: colors.mutedForeground)),
+          const SizedBox(height: 16),
+
+          // Search field
+          Row(
+            children: [
+              Expanded(
+                child: FTextField(
+                  control: FTextFieldControl.managed(
+                      controller: _searchController),
+                  hint: 'Search by name...',
+                  prefixBuilder: (ctx, style, variants) =>
+                      FTextField.prefixIconBuilder(
+                          ctx, style, variants, const Icon(FIcons.search)),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'https://eda.app/invite/$groupId',
-                        style: context.theme.typography.sm,
-                        overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(width: 8),
+              FButton(
+                onPress: _searching ? null : _search,
+                child: _searching
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator.adaptive(
+                            strokeWidth: 2))
+                    : const Text('Search'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Results
+          if (_results.isEmpty && !_searching)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text(
+                  _searchController.text.length >= 2
+                      ? 'No users found'
+                      : 'Type at least 2 characters',
+                  style: typo.xs.copyWith(color: colors.mutedForeground),
+                ),
+              ),
+            )
+          else
+            ...List.generate(
+              _results.length > 5 ? 5 : _results.length,
+              (i) {
+                final user = _results[i];
+                final name = user['display_name'] as String? ?? 'Unknown';
+                final id = user['id'] as String;
+                final initial =
+                    name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: FTile(
+                    prefix: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: colors.secondary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: colors.border),
                       ),
+                      alignment: Alignment.center,
+                      child: Text(initial,
+                          style: typo.xs.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground)),
                     ),
-                    FButton.icon(
-                      onPress: () {
-                        Clipboard.setData(ClipboardData(
-                            text: 'https://eda.app/invite/$groupId'));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Link copied')),
-                        );
-                        Navigator.of(sheetContext).pop();
-                      },
-                      child: const Icon(FIcons.copy),
+                    title: Text(name),
+                    subtitle: Text(id.substring(0, id.length.clamp(0, 8)),
+                        style: typo.xs
+                            .copyWith(color: colors.mutedForeground)),
+                    suffix: FButton(
+                      onPress: _adding
+                          ? null
+                          : () => _addMember(id, name),
+                      prefix: const Icon(FIcons.userPlus),
+                      child: const Text('Add'),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 20),
-            FButton(
-              onPress: () => Navigator.of(sheetContext).pop(),
-              child: const Text('Done'),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
