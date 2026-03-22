@@ -141,7 +141,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Expanded(
               child: FButton(
                 variant: FButtonVariant.outline,
-                onPress: () => _open(context, const CreatePaymentRequestScreen()),
+                onPress: () => _open(context, const CreatePaymentRequestScreen(
+                    mode: PaymentMode.requestPayment)),
                 prefix: const Icon(FIcons.send),
                 child: const Text('Request'),
               ),
@@ -292,6 +293,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       future: _resolveName(tx.creatorId),
       builder: (context, snap) {
         final creator = snap.data ?? '...';
+        final isPending = tx.status == 'pending';
+        final iconColor = isPending
+            ? const Color(0xFFF59E0B) // amber
+            : tx.status == 'approved' || tx.status == 'applied'
+                ? colors.primary
+                : colors.mutedForeground;
         return FTile(
           title: Text(tx.description ?? 'Transaction',
               style: typo.sm.copyWith(fontWeight: FontWeight.w500)),
@@ -301,10 +308,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: colors.secondary,
+              color: iconColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
+              border: isPending
+                  ? Border.all(color: const Color(0xFFF59E0B), width: 1.5)
+                  : null,
             ),
-            child: Icon(FIcons.receipt, size: 16, color: colors.mutedForeground),
+            child: Icon(
+              isPending ? FIcons.clock : FIcons.receipt,
+              size: 16,
+              color: iconColor,
+            ),
           ),
           suffix: Row(
             mainAxisSize: MainAxisSize.min,

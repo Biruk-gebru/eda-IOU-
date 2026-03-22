@@ -91,11 +91,22 @@ class _TransactionDetailScreenState
     final currentUserId =
         ref.read(supabaseClientProvider).auth.currentUser?.id;
 
+    final isCreator = txAsync.whenOrNull(
+            data: (tx) => tx.creatorId == currentUserId) ??
+        false;
+
     return FScaffold(
       header: FHeader.nested(
         title: const Text('Transaction'),
         prefixes: [
           FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
+        ],
+        suffixes: [
+          if (isCreator)
+            FHeaderAction(
+              icon: const Icon(FIcons.trash2),
+              onPress: () => _confirmDelete(context),
+            ),
         ],
       ),
       child: txAsync.when(
@@ -396,5 +407,69 @@ class _TransactionDetailScreenState
     return h >= 24
         ? 'Auto-cancels in ${h ~/ 24}d ${h % 24}h'
         : 'Auto-cancels in ${h}h';
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final tx = ref.read(transactionDetailProvider(widget.transactionId)).valueOrNull;
+    final isPending = tx?.status == 'pending';
+
+    await showFDialog(
+      context: context,
+      builder: (ctx, style, animation) => FDialog(
+        animation: animation,
+        direction: Axis.horizontal,
+        title: const Text('Delete transaction'),
+        body: Text(isPending
+            ? 'This will cancel and delete this pending transaction.'
+            : 'This approved transaction will be reversed. All participants will be notified.'),
+        actions: [
+          FButton(
+            variant: FButtonVariant.destructive,
+            onPress: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final client = ref.read(supabaseClientProvider);
+                // Cancel first if pending
+                if (isPending) {
+                  await client.from('transactions').update({
+                    'status': 'cancelled',
+                  }).eq('id', widget.transactionId);
+                }
+                // Delete participants then transaction
+                await client
+                    .from('transaction_participants')
+                    .delete()
+                    .eq('transaction_id', widget.transactionId);
+                await client
+                    .from('transactions')
+                    .delete()
+                    .eq('id', widget.transactionId);
+
+                ref.invalidate(transactionListProvider);
+                ref.invalidate(balancesProvider);
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Transaction deleted')),
+                  );
+                  Navigator.of(context).pop();
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+          FButton(
+            variant: FButtonVariant.outline,
+            onPress: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 }
