@@ -5,18 +5,43 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/net_balance.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/user_providers.dart';
 import '../payments/create_payment_request_screen.dart';
 import '../settlements/settlement_screen.dart';
+import 'person_detail_screen.dart';
 
-class PersonalScreen extends ConsumerWidget {
+class PersonalScreen extends ConsumerStatefulWidget {
   const PersonalScreen({super.key});
 
+  @override
+  ConsumerState<PersonalScreen> createState() => _PersonalScreenState();
+}
+
+class _PersonalScreenState extends ConsumerState<PersonalScreen> {
   static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
+  final Map<String, String> _nameCache = {};
+
+  Future<String> _resolveName(String userId) async {
+    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final p = await client
+          .from('profiles')
+          .select('display_name')
+          .eq('id', userId)
+          .maybeSingle();
+      final name = p?['display_name'] as String? ?? 'Unknown';
+      _nameCache[userId] = name;
+      return name;
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
     final balancesAsync = ref.watch(balancesProvider);
@@ -151,18 +176,18 @@ class PersonalScreen extends ConsumerWidget {
                 ),
               )
             else
-              FTileGroup(
-                children: [
-                  for (final b in balances) _balanceTile(b, userId, colors, typo),
-                ],
-              ),
+              ...balances.map((b) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: _balanceTile(context, b, userId, colors, typo),
+              )),
           ],
         );
       },
     );
   }
 
-  FTile _balanceTile(NetBalance b, String? userId, FColors colors, FTypography typo) {
+  Widget _balanceTile(
+      BuildContext context, NetBalance b, String? userId, FColors colors, FTypography typo) {
     final bool owes;
     final String otherId;
     if (userId == b.userA) {
@@ -175,27 +200,45 @@ class PersonalScreen extends ConsumerWidget {
     final amount = b.netAmount.abs();
     final color = owes ? colors.destructive : const Color(0xFF34D399);
     final label = owes ? 'You owe' : 'Owes you';
-    final shortId = otherId.substring(0, otherId.length.clamp(0, 6));
-    final initial = shortId.isNotEmpty ? shortId[0].toUpperCase() : '?';
 
-    return FTile(
-      prefix: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: colors.secondary,
-          shape: BoxShape.circle,
-          border: Border.all(color: colors.border),
-        ),
-        alignment: Alignment.center,
-        child: Text(initial,
-            style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
-      ),
-      title: Text('User $shortId…',
-          style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground)),
-      subtitle: Text(label, style: typo.xs.copyWith(color: colors.mutedForeground)),
-      details: Text(_fmt.format(amount),
-          style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: color)),
+    return FutureBuilder<String>(
+      future: _resolveName(otherId),
+      builder: (context, snap) {
+        final name = snap.data ?? '...';
+        final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+        return FTile(
+          prefix: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(initial,
+                style: typo.xs
+                    .copyWith(fontWeight: FontWeight.w600, color: color)),
+          ),
+          title: Text(name,
+              style: typo.sm.copyWith(
+                  fontWeight: FontWeight.w500, color: colors.foreground)),
+          subtitle: Text(label,
+              style: typo.xs.copyWith(color: colors.mutedForeground)),
+          details: Text(_fmt.format(amount),
+              style:
+                  typo.sm.copyWith(fontWeight: FontWeight.w600, color: color)),
+          suffix: Icon(FIcons.chevronRight,
+              size: 14, color: colors.mutedForeground),
+          onPress: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => PersonDetailScreen(
+              otherUserId: otherId,
+              amount: amount,
+              iOwe: owes,
+            ),
+          )),
+        );
+      },
     );
   }
 }
