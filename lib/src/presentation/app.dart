@@ -6,9 +6,9 @@ import 'package:forui/forui.dart';
 import '../core/providers/connectivity_provider.dart';
 import 'providers/auth_providers.dart';
 import 'providers/theme_provider.dart';
+import 'screens/auth/onboarding_screen.dart';
 import 'screens/auth/sign_in_screen.dart';
 import 'screens/main_shell.dart';
-import 'screens/setup/bank_info_screen.dart';
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
@@ -53,7 +53,6 @@ class AuthGate extends ConsumerWidget {
         body: Center(child: CircularProgressIndicator(color: colors.primary)),
       ),
       error: (error, _) {
-        // If offline, let user into app with cached data
         final isOffline = connectivityAsync.whenOrNull(
               data: (r) => r.contains(ConnectivityResult.none),
             ) ??
@@ -86,21 +85,20 @@ class AuthGate extends ConsumerWidget {
       },
       data: (session) {
         if (session != null) {
-          final user = session.user;
-          final metadata = user.userMetadata;
-          final hasBankInfo = metadata?['has_bank_info'] == true;
+          final metadata = session.user.userMetadata;
+          final hasCompletedSetup = metadata?['has_bank_info'] == true;
 
-          if (!hasBankInfo) return const BankInfoScreen();
+          // New user — needs to set display name first
+          if (!hasCompletedSetup) return const OnboardingScreen();
+
           return const MainShell();
         }
 
-        // No session — check connectivity
+        // No session
         final isOffline = connectivityAsync.whenOrNull(
               data: (r) => r.contains(ConnectivityResult.none),
             ) ??
             false;
-
-        // If offline, let them in with cached data
         if (isOffline) return const MainShell();
 
         return const SignInScreen();
