@@ -136,10 +136,12 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                 Expanded(
                   child: FButton(
                     onPress: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CreatePaymentRequestScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const CreatePaymentRequestScreen(
+                              mode: PaymentMode.iPaid)),
                     ),
-                    prefix: const Icon(FIcons.handCoins),
-                    child: const Text('Send payment'),
+                    prefix: const Icon(FIcons.check),
+                    child: const Text('I paid'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -147,10 +149,12 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                   child: FButton(
                     variant: FButtonVariant.outline,
                     onPress: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettlementScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const CreatePaymentRequestScreen(
+                              mode: PaymentMode.requestPayment)),
                     ),
-                    prefix: const Icon(FIcons.arrowRightLeft),
-                    child: const Text('Redirect'),
+                    prefix: const Icon(FIcons.handCoins),
+                    child: const Text('Request'),
                   ),
                 ),
               ],
