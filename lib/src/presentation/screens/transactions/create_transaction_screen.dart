@@ -217,6 +217,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
 
   FTile _participantTile(_ParticipantEntry p, FColors colors, FTypography typo) {
     final amountCtl = TextEditingController(text: p.customAmount?.toStringAsFixed(2) ?? '');
+    amountCtl.addListener(() => p.customAmount = double.tryParse(amountCtl.text));
     return FTile(
       prefix: FCheckbox(
         value: p.included,
@@ -225,23 +226,12 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
       title: Text(p.displayName, style: typo.sm.copyWith(fontWeight: FontWeight.w500)),
       subtitle: _customSplit
           ? SizedBox(
-              width: 110,
-              height: 36,
-              child: TextField(
-                controller: amountCtl,
+              width: 120,
+              child: FTextField(
+                control: FTextFieldControl.managed(controller: amountCtl),
+                hint: 'Amount',
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: typo.sm.copyWith(color: colors.foreground),
-                decoration: InputDecoration(
-                  hintText: 'Amount',
-                  hintStyle: typo.sm.copyWith(color: colors.mutedForeground),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                ),
-                onChanged: (v) => p.customAmount = double.tryParse(v),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
               ),
             )
           : Text(p.isPayer ? 'Payer' : 'Equal split',
