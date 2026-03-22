@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../app.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/user_providers.dart';
 
@@ -137,10 +138,7 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Banking info saved')),
         );
-        // If this is part of onboarding (no back button), pop will be handled by AuthGate
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
+        _navigateAway();
       }
     } catch (e) {
       if (mounted) {
@@ -161,7 +159,22 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
       );
       ref.invalidate(authSessionProvider);
     } catch (_) {}
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+      _navigateAway();
+    }
+  }
+
+  void _navigateAway() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      // During onboarding — replace entire stack with AuthGate
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+        (_) => false,
+      );
+    }
   }
 
   @override
