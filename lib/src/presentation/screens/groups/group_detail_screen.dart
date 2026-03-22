@@ -40,21 +40,15 @@ class GroupDetailScreen extends ConsumerWidget {
         children: [
           FTabEntry(
             label: const Text('Ledger'),
-            child: Expanded(
-              child: _LedgerTab(groupId: groupId),
-            ),
+            child: _LedgerTab(groupId: groupId),
           ),
           FTabEntry(
             label: const Text('Members'),
-            child: Expanded(
-              child: _MembersTab(groupId: groupId),
-            ),
+            child: _MembersTab(groupId: groupId),
           ),
           FTabEntry(
             label: const Text('Requests'),
-            child: Expanded(
-              child: _RequestsTab(groupId: groupId),
-            ),
+            child: _RequestsTab(groupId: groupId),
           ),
         ],
       ),
