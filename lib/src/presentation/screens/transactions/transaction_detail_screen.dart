@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/auth_providers.dart';
+import '../../providers/balance_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../../domain/entities/transaction.dart' as domain;
 import '../../../domain/entities/transaction_participant.dart';
@@ -57,6 +58,7 @@ class _TransactionDetailScreenState
       ref.invalidate(
           transactionParticipantsProvider(widget.transactionId));
       ref.invalidate(transactionListProvider);
+      ref.invalidate(balancesProvider);
 
       if (mounted) {
         final msg = approve
