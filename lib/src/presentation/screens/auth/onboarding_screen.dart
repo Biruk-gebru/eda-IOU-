@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/auth_providers.dart';
 import '../../providers/user_providers.dart';
+import '../setup/bank_info_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -26,7 +27,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _next() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _nameError = 'Name is required');
@@ -34,10 +35,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
     if (name.length < 2) {
       setState(() => _nameError = 'At least 2 characters');
-      return;
-    }
-    if (name.length > 30) {
-      setState(() => _nameError = 'Max 30 characters');
       return;
     }
 
@@ -51,21 +48,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final userId = client.auth.currentUser?.id;
       if (userId == null) return;
 
-      // Save display_name directly to profiles table
+      // Save name to profiles
       await client.from('profiles').upsert({
         'id': userId,
         'display_name': name,
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-      // Mark onboarding as complete in user metadata
-      await client.auth.updateUser(
-        UserAttributes(data: {'has_bank_info': true, 'display_name': name}),
-      );
-
-      // Refresh providers so the app picks up the new name
       ref.invalidate(currentUserProvider);
-      ref.invalidate(authSessionProvider);
+
+      if (mounted) {
+        // Go to banking info (skippable)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const BankInfoScreen()),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -82,7 +79,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final typo = context.theme.typography;
 
     return FScaffold(
-      header: const FHeader(title: Text('Complete your profile')),
+      header: const FHeader(title: Text('Set up your profile')),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(28, 32, 28, 40),
         child: Column(
@@ -118,7 +115,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             const SizedBox(height: 36),
             FTextField(
               control: FTextFieldControl.managed(controller: _nameController),
-              label: const Text('Display name'),
+              label: const Text('Your name'),
               hint: 'e.g. Alex',
               description: _nameError != null
                   ? Text(_nameError!,
@@ -135,12 +132,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             SizedBox(
               width: double.infinity,
               child: FButton(
-                onPress: _isSubmitting ? null : _submit,
+                onPress: _isSubmitting ? null : _next,
                 prefix: _isSubmitting
                     ? const SizedBox(
                         width: 18, height: 18, child: FCircularProgress())
                     : const Icon(FIcons.arrowRight),
-                child: const Text('Save and continue'),
+                child: const Text('Next'),
               ),
             ),
           ],

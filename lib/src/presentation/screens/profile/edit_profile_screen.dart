@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 
 import '../../providers/auth_providers.dart';
 import '../../providers/user_providers.dart';
+import '../setup/bank_info_screen.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -15,19 +16,13 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _nameController = TextEditingController();
-  final _bankNameController = TextEditingController();
-  final _accountNameController = TextEditingController();
-  final _accountNumberController = TextEditingController();
   bool _isLoading = false;
   bool _loaded = false;
-  String? _accountError;
+  List<Map<String, dynamic>> _bankAccounts = [];
 
   @override
   void dispose() {
     _nameController.dispose();
-    _bankNameController.dispose();
-    _accountNameController.dispose();
-    _accountNumberController.dispose();
     super.dispose();
   }
 
@@ -35,40 +30,33 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (_loaded || user == null) return;
     _loaded = true;
     _nameController.text = user.displayName ?? '';
-    _bankNameController.text = user.bankName ?? '';
-    _accountNameController.text = user.accountName ?? '';
-    _accountNumberController.text = user.accountNumber ?? '';
+    _loadBankAccounts();
   }
 
-  String? _validateAccountNumber(String value) {
-    if (value.isEmpty) return null;
-    if (value.length < 8) return 'At least 8 digits';
-    if (value.length > 16) return 'At most 16 digits';
-    if (!RegExp(r'^\d+$').hasMatch(value)) return 'Only digits allowed';
-    return null;
+  Future<void> _loadBankAccounts() async {
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return;
+      final data = await client
+          .from('banking_accounts')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at');
+      setState(() => _bankAccounts = List<Map<String, dynamic>>.from(data));
+    } catch (_) {}
   }
 
-  Future<void> _save() async {
+  Future<void> _saveName() async {
     final name = _nameController.text.trim();
-    final acctNum = _accountNumberController.text.trim();
-
-    if (name.isEmpty) {
+    if (name.isEmpty || name.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Display name is required')),
+        const SnackBar(content: Text('Name must be at least 2 characters')),
       );
       return;
     }
 
-    if (acctNum.isNotEmpty) {
-      final err = _validateAccountNumber(acctNum);
-      if (err != null) {
-        setState(() => _accountError = err);
-        return;
-      }
-    }
-
     setState(() => _isLoading = true);
-
     try {
       final client = ref.read(supabaseClientProvider);
       final userId = client.auth.currentUser?.id;
@@ -77,23 +65,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await client.from('profiles').upsert({
         'id': userId,
         'display_name': name,
-        'bank_name': _bankNameController.text.trim().isNotEmpty
-            ? _bankNameController.text.trim()
-            : null,
-        'account_name': _accountNameController.text.trim().isNotEmpty
-            ? _accountNameController.text.trim()
-            : null,
-        'account_number': acctNum.isNotEmpty ? acctNum : null,
         'updated_at': DateTime.now().toIso8601String(),
       });
 
       ref.invalidate(currentUserProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated')),
-        );
-        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Name updated')));
       }
     } catch (e) {
       if (mounted) {
@@ -105,12 +84,28 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  Future<void> _deleteBankAccount(String id) async {
+    try {
+      final client = ref.read(supabaseClientProvider);
+      await client.from('banking_accounts').delete().eq('id', id);
+      await _loadBankAccounts();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Account removed')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
     final userAsync = ref.watch(currentUserProvider);
-
     userAsync.whenData((user) => _loadProfile(user));
 
     return FScaffold(
@@ -120,85 +115,100 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
         ],
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Profile section
-            Text('Profile',
-                style: typo.xs.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colors.mutedForeground,
-                    letterSpacing: 0.5)),
-            const SizedBox(height: 12),
-            FTextField(
-              control:
-                  FTextFieldControl.managed(controller: _nameController),
-              label: const Text('Display Name'),
-              hint: 'Your name',
-              enabled: !_isLoading,
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 28),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        children: [
+          // Profile section
+          _label('NAME', colors, typo),
+          const SizedBox(height: 10),
+          FTextField(
+            control: FTextFieldControl.managed(controller: _nameController),
+            hint: 'Your name',
+            enabled: !_isLoading,
+            textCapitalization: TextCapitalization.words,
+            inputFormatters: [LengthLimitingTextInputFormatter(30)],
+          ),
+          const SizedBox(height: 12),
+          FButton(
+            variant: FButtonVariant.outline,
+            onPress: _isLoading ? null : _saveName,
+            child: const Text('Update name'),
+          ),
 
-            // Banking section
-            Text('Banking Info',
-                style: typo.xs.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colors.mutedForeground,
-                    letterSpacing: 0.5)),
-            const SizedBox(height: 4),
-            Text('Used for receiving payments (optional)',
-                style: typo.xs.copyWith(color: colors.mutedForeground)),
-            const SizedBox(height: 12),
-            FTextField(
-              control: FTextFieldControl.managed(
-                  controller: _accountNameController),
-              label: const Text('Account Holder Name'),
-              hint: 'Your full name',
-              enabled: !_isLoading,
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 16),
-            FTextField(
-              control: FTextFieldControl.managed(
-                  controller: _bankNameController),
-              label: const Text('Bank Name'),
-              hint: 'e.g. CBE, Awash, Dashen',
-              enabled: !_isLoading,
-            ),
-            const SizedBox(height: 16),
-            FTextField(
-              control: FTextFieldControl.managed(
-                  controller: _accountNumberController),
-              label: const Text('Account Number'),
-              hint: '8-16 digits',
-              description: _accountError != null
-                  ? Text(_accountError!,
-                      style: typo.xs.copyWith(color: colors.destructive))
-                  : const Text('Ethiopian bank account (8-16 digits)'),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(16),
+          const SizedBox(height: 32),
+
+          // Banking section
+          Row(
+            children: [
+              Expanded(child: _label('BANK ACCOUNTS', colors, typo)),
+              FButton(
+                variant: FButtonVariant.outline,
+                onPress: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const BankInfoScreen()),
+                  );
+                  _loadBankAccounts();
+                },
+                prefix: const Icon(FIcons.plus),
+                child: const Text('Add'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (_bankAccounts.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text('No bank accounts added yet',
+                    style: typo.sm.copyWith(color: colors.mutedForeground)),
+              ),
+            )
+          else
+            FTileGroup(
+              children: [
+                for (final acct in _bankAccounts)
+                  FTile(
+                    prefix: Icon(
+                      acct['bank_type'] == 'telebirr'
+                          ? FIcons.smartphone
+                          : FIcons.landmark,
+                      color: colors.mutedForeground,
+                    ),
+                    title: Text(_bankLabel(acct['bank_type'] as String)),
+                    subtitle: Text(acct['account_identifier'] as String),
+                    suffix: FButton.icon(
+                      onPress: () => _deleteBankAccount(acct['id'] as String),
+                      child: Icon(FIcons.trash2,
+                          size: 16, color: colors.destructive),
+                    ),
+                  ),
               ],
-              enabled: !_isLoading,
             ),
-            const SizedBox(height: 32),
-            FButton(
-              onPress: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator.adaptive(
-                          strokeWidth: 2))
-                  : const Text('Save Changes'),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
+
+  String _bankLabel(String type) {
+    switch (type) {
+      case 'telebirr':
+        return 'Telebirr';
+      case 'cbe':
+        return 'CBE';
+      case 'zemen':
+        return 'Zemen Bank';
+      default:
+        return type;
+    }
+  }
+
+  Widget _label(String text, FColors colors, FTypography typo) => Text(
+        text,
+        style: typo.xs.copyWith(
+          fontWeight: FontWeight.w600,
+          color: colors.mutedForeground,
+          letterSpacing: 0.8,
+        ),
+      );
 }

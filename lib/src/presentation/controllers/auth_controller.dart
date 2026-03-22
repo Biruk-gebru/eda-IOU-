@@ -1,8 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/supabase_config.dart';
 import '../providers/auth_providers.dart';
+import '../providers/balance_providers.dart';
+import '../providers/group_providers.dart';
+import '../providers/transaction_providers.dart';
+import '../providers/user_providers.dart';
 
 final authControllerProvider = Provider<AuthController>(
   (ref) => AuthController(ref),
@@ -21,8 +26,7 @@ class AuthController {
   }) async {
     try {
       await _client.auth.signInWithPassword(email: email, password: password);
-    } on AuthException catch (e, s) {
-      Error.safeToString(s);
+    } on AuthException catch (e) {
       throw AuthControllerException(e.message);
     } catch (e) {
       throw AuthControllerException('Unable to sign in. Please try again.');
@@ -67,10 +71,57 @@ class AuthController {
   Future<void> signOut() async {
     try {
       await _client.auth.signOut();
+
+      // Clear all cached data from previous session
+      await _clearAllCaches();
+
+      // Invalidate all providers so they don't hold stale data
+      _ref.invalidate(currentUserProvider);
+      _ref.invalidate(transactionListProvider);
+      _ref.invalidate(groupListProvider);
+      _ref.invalidate(balancesProvider);
     } on AuthException catch (e) {
       throw AuthControllerException(e.message);
     } catch (_) {
       throw AuthControllerException('Unable to sign out right now.');
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw AuthControllerException('Not signed in');
+
+      // Delete profile (cascades to banking_accounts, group_members, etc.)
+      await _client.from('profiles').delete().eq('id', userId);
+
+      await _client.auth.signOut();
+      await _clearAllCaches();
+
+      _ref.invalidate(currentUserProvider);
+      _ref.invalidate(transactionListProvider);
+      _ref.invalidate(groupListProvider);
+      _ref.invalidate(balancesProvider);
+    } on AuthException catch (e) {
+      throw AuthControllerException(e.message);
+    } catch (e) {
+      throw AuthControllerException('Unable to delete account: $e');
+    }
+  }
+
+  Future<void> _clearAllCaches() async {
+    try {
+      final boxes = ['user_profile', 'transactions', 'groups_cache', 'balances_cache'];
+      for (final name in boxes) {
+        if (Hive.isBoxOpen(name)) {
+          await Hive.box<String>(name).clear();
+        } else {
+          final box = await Hive.openBox<String>(name);
+          await box.clear();
+        }
+      }
+    } catch (_) {
+      // Non-critical — don't block sign out
     }
   }
 }
