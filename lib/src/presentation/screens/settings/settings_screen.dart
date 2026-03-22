@@ -194,14 +194,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
 
-        const SizedBox(height: 36),
+        const SizedBox(height: 28),
 
-        // ── Sign out ───────────────────────────────────────────────────────
+        // ── Danger zone ─────────────────────────────────────────────────
+        _sectionLabel('DANGER ZONE', colors, typo),
+        const SizedBox(height: 10),
         FButton(
-          variant: FButtonVariant.destructive,
+          variant: FButtonVariant.outline,
           onPress: () => _confirmSignOut(context),
           prefix: const Icon(FIcons.logOut),
           child: const Text('Sign out'),
+        ),
+        const SizedBox(height: 10),
+        FButton(
+          variant: FButtonVariant.destructive,
+          onPress: () => _confirmDeleteAccount(context),
+          prefix: const Icon(FIcons.trash2),
+          child: const Text('Delete account'),
         ),
       ],
     );
@@ -285,6 +294,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               }
             },
             child: const Text('Sign out'),
+          ),
+          FButton(
+            variant: FButtonVariant.outline,
+            onPress: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    await showFDialog(
+      context: context,
+      builder: (ctx, style, animation) => FDialog(
+        animation: animation,
+        direction: Axis.horizontal,
+        title: const Text('Delete account'),
+        body: const Text(
+            'This will permanently delete your account, all your data, groups, and transaction history. This cannot be undone.'),
+        actions: [
+          FButton(
+            variant: FButtonVariant.destructive,
+            onPress: () async {
+              Navigator.of(ctx).pop();
+              try {
+                await ref.read(authControllerProvider).deleteAccount();
+              } on AuthControllerException catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(e.message)));
+                }
+              }
+            },
+            child: const Text('Delete permanently'),
           ),
           FButton(
             variant: FButtonVariant.outline,
