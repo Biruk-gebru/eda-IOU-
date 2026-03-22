@@ -48,6 +48,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final userId = client.auth.currentUser?.id;
       if (userId == null) return;
 
+      // Check if name is already taken
+      final existing = await client
+          .from('profiles')
+          .select('id')
+          .ilike('display_name', name)
+          .neq('id', userId)
+          .maybeSingle();
+
+      if (existing != null) {
+        if (mounted) {
+          setState(() {
+            _nameError = 'This name is already taken';
+            _isSubmitting = false;
+          });
+        }
+        return;
+      }
+
       // Save name to profiles
       await client.from('profiles').upsert({
         'id': userId,

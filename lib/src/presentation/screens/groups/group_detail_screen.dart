@@ -298,39 +298,10 @@ class _MembersTab extends ConsumerWidget {
         return Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                itemCount: members.length,
-                itemBuilder: (context, index) {
-                  final member = members[index];
-                  final isCurrentUser = member.userId == currentUserId;
-                  final roleLabel = member.role == 'creator'
-                      ? 'Creator'
-                      : 'Member';
-
-                  return FTile(
-                    prefix: FAvatar.raw(
-                      size: 36,
-                      child: Text(
-                        isCurrentUser
-                            ? 'Y'
-                            : member.userId.characters.first.toUpperCase(),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                    title: Text(isCurrentUser ? 'You' : member.userId),
-                    subtitle: Text(roleLabel),
-                    suffix: Text(
-                      member.joinedAt != null
-                          ? 'Joined ${_formatJoinDate(member.joinedAt!)}'
-                          : '',
-                      style: context.theme.typography.xs.copyWith(
-                        color: context.theme.colors.mutedForeground,
-                      ),
-                    ),
-                  );
-                },
+              child: _MembersList(
+                members: members,
+                groupId: groupId,
+                currentUserId: currentUserId,
               ),
             ),
             if (isCreator)
@@ -365,6 +336,107 @@ class _MembersTab extends ConsumerWidget {
       ),
       builder: (_) => _AddMemberSheet(groupId: groupId),
     );
+  }
+}
+
+class _MembersList extends ConsumerStatefulWidget {
+  const _MembersList({
+    required this.members,
+    required this.groupId,
+    required this.currentUserId,
+  });
+  final List<dynamic> members;
+  final String groupId;
+  final String? currentUserId;
+
+  @override
+  ConsumerState<_MembersList> createState() => _MembersListState();
+}
+
+class _MembersListState extends ConsumerState<_MembersList> {
+  final Map<String, String> _names = {};
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNames();
+  }
+
+  Future<void> _fetchNames() async {
+    try {
+      final client = ref.read(supabaseClientProvider);
+      for (final member in widget.members) {
+        if (member.userId == widget.currentUserId) {
+          _names[member.userId] = 'You';
+          continue;
+        }
+        try {
+          final profile = await client
+              .from('profiles')
+              .select('display_name')
+              .eq('id', member.userId)
+              .maybeSingle();
+          _names[member.userId] =
+              profile?['display_name'] as String? ?? 'Unknown';
+        } catch (_) {
+          _names[member.userId] = 'Unknown';
+        }
+      }
+      if (mounted) setState(() => _loaded = true);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      itemCount: widget.members.length,
+      itemBuilder: (context, index) {
+        final member = widget.members[index];
+        final name = _names[member.userId] ?? ((_loaded) ? 'Unknown' : '...');
+        final isCurrentUser = member.userId == widget.currentUserId;
+        final role = member.role == 'creator' ? 'Creator' : 'Member';
+        final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+        return FTile(
+          prefix: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: colors.secondary,
+              shape: BoxShape.circle,
+              border: Border.all(color: colors.border),
+            ),
+            alignment: Alignment.center,
+            child: Text(initial,
+                style: typo.xs.copyWith(
+                    fontWeight: FontWeight.w600, color: colors.foreground)),
+          ),
+          title: Text(name,
+              style: typo.sm.copyWith(
+                  fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.w500,
+                  color: colors.foreground)),
+          subtitle: Text(role,
+              style: typo.xs.copyWith(color: colors.mutedForeground)),
+          suffix: member.joinedAt != null
+              ? Text(_formatJoinDate(member.joinedAt!),
+                  style: typo.xs.copyWith(color: colors.mutedForeground))
+              : null,
+        );
+      },
+    );
+  }
+
+  String _formatJoinDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}';
   }
 }
 
