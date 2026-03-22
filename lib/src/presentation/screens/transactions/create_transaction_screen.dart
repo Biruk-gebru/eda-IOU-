@@ -22,6 +22,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   bool _isGroupExpense = true;
   bool _customSplit = false;
   bool _isSubmitting = false;
+  String? _descError;
+  String? _amountError;
 
   Group? _selectedGroup;
   List<_ParticipantEntry> _participants = [];
@@ -117,6 +119,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
             FTextField(
               control: FTextFieldControl.managed(controller: _descriptionController),
               hint: 'e.g. Dinner at restaurant',
+              description: _descError != null
+                  ? Text(_descError!, style: typo.xs.copyWith(color: colors.destructive))
+                  : null,
               prefixBuilder: (context, style, variants) =>
                   FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.fileText)),
             ),
@@ -129,6 +134,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
             FTextField(
               control: FTextFieldControl.managed(controller: _amountController),
               hint: '0.00',
+              description: _amountError != null
+                  ? Text(_amountError!, style: typo.xs.copyWith(color: colors.destructive))
+                  : null,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
               prefixBuilder: (context, style, variants) =>
@@ -299,17 +307,19 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   }
 
   Future<void> _submit() async {
+    setState(() { _descError = null; _amountError = null; });
+
     final description = _descriptionController.text.trim();
     final amountText = _amountController.text.trim();
 
     if (description.isEmpty) {
-      _snack('Enter a description');
+      setState(() => _descError = 'Description is required');
       return;
     }
 
     final totalAmount = double.tryParse(amountText);
     if (totalAmount == null || totalAmount <= 0) {
-      _snack('Enter a valid amount');
+      setState(() => _amountError = 'Enter a valid amount');
       return;
     }
 

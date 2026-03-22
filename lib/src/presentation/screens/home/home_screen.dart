@@ -12,6 +12,7 @@ import '../../providers/user_providers.dart';
 import '../notifications/notification_screen.dart';
 import '../payments/create_payment_request_screen.dart';
 import '../transactions/create_transaction_screen.dart';
+import '../transactions/transaction_detail_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -250,14 +251,14 @@ class HomeScreen extends ConsumerWidget {
         }
         return FTileGroup(
           children: [
-            for (final tx in txs) _txTile(tx, colors, typo),
+            for (final tx in txs) _txTile(context, tx, colors, typo),
           ],
         );
       },
     );
   }
 
-  FTile _txTile(Transaction tx, FColors colors, FTypography typo) {
+  FTile _txTile(BuildContext context, Transaction tx, FColors colors, FTypography typo) {
     final date = tx.createdAt != null ? DateFormat('MMM d').format(tx.createdAt!) : '';
     return FTile(
       title: Text(tx.description ?? 'Transaction',
@@ -277,6 +278,9 @@ class HomeScreen extends ConsumerWidget {
         style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
       ),
       suffix: Icon(FIcons.chevronRight, size: 14, color: colors.border),
+      onPress: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => TransactionDetailScreen(transactionId: tx.id),
+      )),
     );
   }
 
