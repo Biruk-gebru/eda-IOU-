@@ -216,14 +216,27 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   }
 
   FTile _participantTile(_ParticipantEntry p, FColors colors, FTypography typo) {
+    // Payer (creator) is shown but not included in split
+    if (p.isPayer) {
+      return FTile(
+        prefix: Icon(FIcons.wallet, size: 18, color: colors.primary),
+        title: Text('${p.displayName} (You)',
+            style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+        subtitle: Text('Paying — not included in split',
+            style: typo.xs.copyWith(color: colors.mutedForeground)),
+      );
+    }
+
     final amountCtl = TextEditingController(text: p.customAmount?.toStringAsFixed(2) ?? '');
     amountCtl.addListener(() => p.customAmount = double.tryParse(amountCtl.text));
+
     return FTile(
       prefix: FCheckbox(
         value: p.included,
         onChange: (v) => setState(() => p.included = v),
       ),
-      title: Text(p.displayName, style: typo.sm.copyWith(fontWeight: FontWeight.w500)),
+      title: Text(p.displayName,
+          style: typo.sm.copyWith(fontWeight: FontWeight.w500)),
       subtitle: _customSplit
           ? SizedBox(
               width: 120,
@@ -234,9 +247,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
               ),
             )
-          : Text(p.isPayer ? 'Payer' : 'Equal split',
+          : Text('Equal split',
               style: typo.xs.copyWith(color: colors.mutedForeground)),
-      suffix: p.isPayer ? Icon(FIcons.wallet, size: 14, color: colors.mutedForeground) : null,
     );
   }
 
@@ -289,32 +301,85 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   Future<void> _submit() async {
     final description = _descriptionController.text.trim();
     final amountText = _amountController.text.trim();
-    if (description.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a description'))); return; }
+
+    if (description.isEmpty) {
+      _snack('Enter a description');
+      return;
+    }
+
     final totalAmount = double.tryParse(amountText);
-    if (totalAmount == null || totalAmount <= 0) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid amount'))); return; }
+    if (totalAmount == null || totalAmount <= 0) {
+      _snack('Enter a valid amount');
+      return;
+    }
+
     final client = ref.read(supabaseClientProvider);
     final currentUserId = client.auth.currentUser?.id;
     if (currentUserId == null) return;
-    final included = _participants.where((p) => p.included).toList();
-    final maps = <Map<String, dynamic>>[];
-    if (_customSplit) {
-      for (final p in included) maps.add({'user_id': p.userId, 'amount_due': p.customAmount ?? 0.0});
-    } else {
-      final split = included.isNotEmpty ? totalAmount / included.length : totalAmount;
-      for (final p in included) maps.add({'user_id': p.userId, 'amount_due': split});
+
+    // Only include non-payer participants (creator pays, others owe)
+    final others = _participants
+        .where((p) => p.included && !p.isPayer)
+        .toList();
+
+    if (others.isEmpty) {
+      _snack('Add at least one other participant');
+      return;
     }
-    if (maps.isEmpty) maps.add({'user_id': currentUserId, 'amount_due': totalAmount});
+
+    final maps = <Map<String, dynamic>>[];
+
+    if (_customSplit) {
+      // Validate custom amounts
+      double sum = 0;
+      for (final p in others) {
+        final amt = p.customAmount ?? 0;
+        if (amt <= 0) {
+          _snack('Enter an amount for ${p.displayName}');
+          return;
+        }
+        sum += amt;
+      }
+      // Sum must equal total (with small tolerance for floating point)
+      if ((sum - totalAmount).abs() > 0.01) {
+        _snack(
+            'Split amounts (${sum.toStringAsFixed(2)}) must equal total (${totalAmount.toStringAsFixed(2)})');
+        return;
+      }
+      for (final p in others) {
+        maps.add({'user_id': p.userId, 'amount_due': p.customAmount!});
+      }
+    } else {
+      // Equal split among non-payer participants
+      final splitAmount = totalAmount / others.length;
+      for (final p in others) {
+        maps.add({'user_id': p.userId, 'amount_due': splitAmount});
+      }
+    }
+
     setState(() => _isSubmitting = true);
     try {
       await ref.read(transactionRepositoryProvider).createTransaction(
-          groupId: _selectedGroup?.id, payerId: currentUserId, totalAmount: totalAmount, description: description, participants: maps);
+            groupId: _selectedGroup?.id,
+            payerId: currentUserId,
+            totalAmount: totalAmount,
+            description: description,
+            participants: maps,
+          );
       ref.invalidate(transactionListProvider);
-      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction created'))); Navigator.of(context).pop(); }
+      if (mounted) {
+        _snack('Transaction created');
+        Navigator.of(context).pop();
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) _snack('Error: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
 
