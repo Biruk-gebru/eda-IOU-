@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../domain/entities/user.dart' as domain;
 import '../../providers/auth_providers.dart';
 import '../../providers/user_providers.dart';
 
@@ -17,6 +18,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _nameController = TextEditingController();
   bool _isSubmitting = false;
+  String? _nameError;
 
   @override
   void dispose() {
@@ -27,28 +29,43 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your display name')),
-      );
+      setState(() => _nameError = 'Name is required');
+      return;
+    }
+    if (name.length < 2) {
+      setState(() => _nameError = 'At least 2 characters');
+      return;
+    }
+    if (name.length > 30) {
+      setState(() => _nameError = 'Max 30 characters');
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _nameError = null;
+    });
 
     try {
       final client = ref.read(supabaseClientProvider);
       final userId = client.auth.currentUser?.id;
       if (userId == null) return;
 
-      final repository = ref.read(userRepositoryProvider);
-      await repository.updateUser(domain.User(id: userId, displayName: name));
+      // Save display_name directly to profiles table
+      await client.from('profiles').upsert({
+        'id': userId,
+        'display_name': name,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
 
+      // Mark onboarding as complete in user metadata
+      await client.auth.updateUser(
+        UserAttributes(data: {'has_bank_info': true, 'display_name': name}),
+      );
+
+      // Refresh providers so the app picks up the new name
+      ref.invalidate(currentUserProvider);
       ref.invalidate(authSessionProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Profile saved')));
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -71,7 +88,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Icon badge
             Container(
               width: 80,
               height: 80,
@@ -83,8 +99,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: Icon(FIcons.user, size: 34, color: colors.foreground),
             ),
             const SizedBox(height: 24),
-
-            // Heading
             Text(
               'What should we call you?',
               style: GoogleFonts.outfit(
@@ -97,31 +111,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             const SizedBox(height: 8),
             Text(
               'This name is shown to others when you create\nor approve transactions.',
-              style: typo.sm.copyWith(color: colors.mutedForeground, height: 1.5),
+              style:
+                  typo.sm.copyWith(color: colors.mutedForeground, height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 36),
-
-            // Name field
             FTextField(
               control: FTextFieldControl.managed(controller: _nameController),
               label: const Text('Display name'),
               hint: 'e.g. Alex',
+              description: _nameError != null
+                  ? Text(_nameError!,
+                      style: typo.xs.copyWith(color: colors.destructive))
+                  : const Text('2-30 characters'),
               enabled: !_isSubmitting,
               textCapitalization: TextCapitalization.words,
-              prefixBuilder: (context, style, variants) => FTextField.prefixIconBuilder(
-                context, style, variants, const Icon(FIcons.user),
-              ),
+              inputFormatters: [LengthLimitingTextInputFormatter(30)],
+              prefixBuilder: (context, style, variants) =>
+                  FTextField.prefixIconBuilder(
+                      context, style, variants, const Icon(FIcons.user)),
             ),
             const SizedBox(height: 28),
-
-            // Submit
             SizedBox(
               width: double.infinity,
               child: FButton(
                 onPress: _isSubmitting ? null : _submit,
                 prefix: _isSubmitting
-                    ? const SizedBox(width: 18, height: 18, child: FCircularProgress())
+                    ? const SizedBox(
+                        width: 18, height: 18, child: FCircularProgress())
                     : const Icon(FIcons.arrowRight),
                 child: const Text('Save and continue'),
               ),
