@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 
@@ -7,6 +6,7 @@ import '../../providers/auth_providers.dart';
 import '../../providers/group_providers.dart';
 import '../../providers/payment_providers.dart';
 import '../../providers/transaction_providers.dart';
+import '../../providers/user_providers.dart';
 
 class GroupDetailScreen extends ConsumerWidget {
   const GroupDetailScreen({
@@ -314,14 +314,6 @@ class _MembersTab extends ConsumerWidget {
     );
   }
 
-  String _formatJoinDate(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}';
-  }
-
   void _showInviteSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -334,7 +326,7 @@ class _MembersTab extends ConsumerWidget {
   }
 }
 
-class _MembersList extends ConsumerStatefulWidget {
+class _MembersList extends ConsumerWidget {
   const _MembersList({
     required this.members,
     required this.groupId,
@@ -345,55 +337,21 @@ class _MembersList extends ConsumerStatefulWidget {
   final String? currentUserId;
 
   @override
-  ConsumerState<_MembersList> createState() => _MembersListState();
-}
-
-class _MembersListState extends ConsumerState<_MembersList> {
-  final Map<String, String> _names = {};
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchNames();
-  }
-
-  Future<void> _fetchNames() async {
-    try {
-      final client = ref.read(supabaseClientProvider);
-      for (final member in widget.members) {
-        if (member.userId == widget.currentUserId) {
-          _names[member.userId] = 'You';
-          continue;
-        }
-        try {
-          final profile = await client
-              .from('profiles')
-              .select('display_name')
-              .eq('id', member.userId)
-              .maybeSingle();
-          _names[member.userId] =
-              profile?['display_name'] as String? ?? 'Unknown';
-        } catch (_) {
-          _names[member.userId] = 'Unknown';
-        }
-      }
-      if (mounted) setState(() => _loaded = true);
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
 
+    final ids = members.map((m) => m.userId as String).toList();
+    ref.read(profileNameCacheProvider.notifier).prefetch(ids);
+    final names = ref.watch(profileNameCacheProvider);
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: widget.members.length,
+      itemCount: members.length,
       itemBuilder: (context, index) {
-        final member = widget.members[index];
-        final name = _names[member.userId] ?? ((_loaded) ? 'Unknown' : '...');
-        final isCurrentUser = member.userId == widget.currentUserId;
+        final member = members[index];
+        final name = names[member.userId] ?? '...';
+        final isCurrentUser = member.userId == currentUserId;
         final role = member.role == 'creator' ? 'Creator' : 'Member';
         final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 

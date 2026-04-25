@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/transaction.dart';
-import '../../providers/auth_providers.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/transaction_providers.dart';
@@ -24,28 +23,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
-  final Map<String, String> _nameCache = {};
-
-  Future<String> _resolveName(String userId) async {
-    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
-    try {
-      final client = ref.read(supabaseClientProvider);
-      if (userId == client.auth.currentUser?.id) {
-        _nameCache[userId] = 'You';
-        return 'You';
-      }
-      final p = await client
-          .from('profiles')
-          .select('display_name')
-          .eq('id', userId)
-          .maybeSingle();
-      final name = p?['display_name'] as String? ?? 'Unknown';
-      _nameCache[userId] = name;
-      return name;
-    } catch (_) {
-      return 'Unknown';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -257,6 +234,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Text('Error: $e', style: typo.sm.copyWith(color: colors.destructive)),
       ),
       data: (txs) {
+        // Batch-prefetch all creator names in one query
+        final ids = txs.map((t) => t.creatorId).toSet().toList();
+        ref.read(profileNameCacheProvider.notifier).prefetch(ids);
+        final names = ref.watch(profileNameCacheProvider);
+
         if (txs.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
@@ -278,7 +260,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             for (final tx in txs)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: _txTile(context, tx, colors, typo),
+                child: _txTile(context, tx, names, colors, typo),
               ),
           ],
         );
@@ -286,14 +268,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _txTile(BuildContext context, Transaction tx, FColors colors, FTypography typo) {
+  Widget _txTile(BuildContext context, Transaction tx, Map<String, String> names, FColors colors, FTypography typo) {
     final date = tx.createdAt != null ? DateFormat('MMM d').format(tx.createdAt!) : '';
-
-    return FutureBuilder<String>(
-      future: _resolveName(tx.creatorId),
-      builder: (context, snap) {
-        final creator = snap.data ?? '...';
-        final isPending = tx.status == 'pending';
+    final creator = names[tx.creatorId] ?? '...';
+    final isPending = tx.status == 'pending';
         final iconColor = isPending
             ? const Color(0xFFF59E0B) // amber
             : tx.status == 'approved' || tx.status == 'applied'
@@ -335,8 +313,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             builder: (_) => TransactionDetailScreen(transactionId: tx.id),
           )),
         );
-      },
-    );
   }
 
   FBadgeVariant _badgeVariant(String s) => switch (s) {

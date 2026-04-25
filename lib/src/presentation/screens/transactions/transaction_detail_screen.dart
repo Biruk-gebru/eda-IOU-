@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/transaction_providers.dart';
+import '../../providers/user_providers.dart';
 import '../../../domain/entities/transaction.dart' as domain;
 import '../../../domain/entities/transaction_participant.dart';
 
@@ -22,29 +23,7 @@ class TransactionDetailScreen extends ConsumerStatefulWidget {
 
 class _TransactionDetailScreenState
     extends ConsumerState<TransactionDetailScreen> {
-  final Map<String, String> _nameCache = {};
   bool _voting = false;
-
-  Future<String> _resolveName(String userId) async {
-    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
-    try {
-      final client = ref.read(supabaseClientProvider);
-      if (userId == client.auth.currentUser?.id) {
-        _nameCache[userId] = 'You';
-        return 'You';
-      }
-      final p = await client
-          .from('profiles')
-          .select('display_name')
-          .eq('id', userId)
-          .maybeSingle();
-      final name = p?['display_name'] as String? ?? 'Unknown';
-      _nameCache[userId] = name;
-      return name;
-    } catch (_) {
-      return 'Unknown';
-    }
-  }
 
   Future<void> _vote(bool approve) async {
     setState(() => _voting = true);
@@ -151,8 +130,12 @@ class _TransactionDetailScreenState
                 child: Center(child: CircularProgressIndicator.adaptive()),
               ),
               error: (e, _) => Text('Error: $e'),
-              data: (parts) => _participantsList(
-                  parts, tx, currentUserId, colors, typo),
+              data: (parts) {
+                final ids = parts.map((p) => p.userId).toList();
+                ref.read(profileNameCacheProvider.notifier).prefetch(ids);
+                final names = ref.watch(profileNameCacheProvider);
+                return _participantsList(parts, tx, currentUserId, names, colors, typo);
+              },
             ),
           ],
         ),
@@ -240,10 +223,10 @@ class _TransactionDetailScreenState
     List<TransactionParticipant> parts,
     domain.Transaction tx,
     String? currentUserId,
+    Map<String, String> names,
     FColors colors,
     FTypography typo,
   ) {
-    // Check if current user is a pending participant
     final myEntry = parts
         .where((p) => p.userId == currentUserId && p.approved == null)
         .firstOrNull;
@@ -252,77 +235,8 @@ class _TransactionDetailScreenState
     return Column(
       children: [
         for (final p in parts)
-          FutureBuilder<String>(
-            future: _resolveName(p.userId),
-            builder: (context, snap) {
-              final name = snap.data ?? '...';
-              final isMe = p.userId == currentUserId;
-              final statusText = p.approved == true
-                  ? 'Approved'
-                  : p.approved == false
-                      ? 'Rejected'
-                      : 'Pending';
-              final statusColor = p.approved == true
-                  ? colors.primary
-                  : p.approved == false
-                      ? colors.destructive
-                      : colors.mutedForeground;
+          _participantTile(p, currentUserId, names, colors, typo),
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: FCard.raw(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : '?',
-                            style: typo.sm.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: statusColor),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(isMe ? 'You' : name,
-                                  style: typo.sm.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      color: colors.foreground)),
-                              Text(
-                                  'ETB ${p.amountDue.toStringAsFixed(2)} · $statusText',
-                                  style: typo.xs
-                                      .copyWith(color: colors.mutedForeground)),
-                            ],
-                          ),
-                        ),
-                        FBadge(
-                          variant: p.approved == true
-                              ? FBadgeVariant.primary
-                              : p.approved == false
-                                  ? FBadgeVariant.destructive
-                                  : FBadgeVariant.outline,
-                          child: Text(statusText),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-
-        // Approve / Reject buttons for current user
         if (canVote) ...[
           const SizedBox(height: 16),
           FCard.raw(
@@ -373,6 +287,78 @@ class _TransactionDetailScreenState
           ),
         ],
       ],
+    );
+  }
+
+  Widget _participantTile(
+    TransactionParticipant p,
+    String? currentUserId,
+    Map<String, String> names,
+    FColors colors,
+    FTypography typo,
+  ) {
+    final name = names[p.userId] ?? '...';
+    final isMe = p.userId == currentUserId;
+    final statusText = p.approved == true
+        ? 'Approved'
+        : p.approved == false
+            ? 'Rejected'
+            : 'Pending';
+    final statusColor = p.approved == true
+        ? colors.primary
+        : p.approved == false
+            ? colors.destructive
+            : colors.mutedForeground;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: FCard.raw(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600, color: statusColor),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(isMe ? 'You' : name,
+                        style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colors.foreground)),
+                    Text(
+                        'ETB ${p.amountDue.toStringAsFixed(2)} · $statusText',
+                        style: typo.xs
+                            .copyWith(color: colors.mutedForeground)),
+                  ],
+                ),
+              ),
+              FBadge(
+                variant: p.approved == true
+                    ? FBadgeVariant.primary
+                    : p.approved == false
+                        ? FBadgeVariant.destructive
+                        : FBadgeVariant.outline,
+                child: Text(statusText),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
