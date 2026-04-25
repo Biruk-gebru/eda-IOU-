@@ -75,75 +75,109 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── Summary card ─────────────────────────────────────────────────
-                Container(
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'YOU OWE',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.2,
-                                  color: colors.mutedForeground,
+                // ── Summary cards ────────────────────────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        decoration: BoxDecoration(
+                          color: colors.destructive,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(color: colors.foreground, offset: const Offset(4, 4)),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: colors.destructiveForeground,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(FIcons.arrowUpRight, size: 14, color: colors.destructive),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _fmt.format(owe),
-                                style: typo.xl3.copyWith(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.foreground,
-                                  letterSpacing: -0.56,
+                                const SizedBox(width: 8),
+                                Text(
+                                  'YOU OWE',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.2,
+                                    color: colors.destructiveForeground.withValues(alpha: 0.8),
+                                  ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _fmt.format(owe),
+                              style: typo.xl3.copyWith(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: colors.destructiveForeground,
+                                letterSpacing: -0.5,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                      Container(width: 1.5, height: 90, color: colors.foreground),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'OWED TO YOU',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.2,
-                                  color: colors.mutedForeground,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(color: colors.foreground, offset: const Offset(4, 4)),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: colors.primaryForeground,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(FIcons.arrowDownLeft, size: 14, color: colors.primary),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _fmt.format(owed),
-                                style: typo.xl3.copyWith(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.foreground,
-                                  letterSpacing: -0.56,
+                                const SizedBox(width: 8),
+                                Text(
+                                  'OWED TO YOU',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.2,
+                                    color: colors.primaryForeground.withValues(alpha: 0.8),
+                                  ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _fmt.format(owed),
+                              style: typo.xl3.copyWith(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: colors.primaryForeground,
+                                letterSpacing: -0.5,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 32),
@@ -201,17 +235,19 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                                 child: Row(
                                   children: [
                                     Container(
-                                      width: 36,
-                                      height: 36,
+                                      width: 40,
+                                      height: 40,
                                       decoration: BoxDecoration(
+                                        color: colors.primary.withValues(alpha: 0.2),
                                         border: Border.all(
                                             color: colors.foreground, width: 1.5),
                                       ),
                                       alignment: Alignment.center,
                                       child: Text(
                                         initial,
-                                        style: typo.sm.copyWith(
-                                            fontWeight: FontWeight.w600,
+                                        style: typo.lg.copyWith(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
                                             color: colors.foreground),
                                       ),
                                     ),
@@ -299,17 +335,14 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                     ),
                   )
                 else
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colors.card,
-                      border: Border.all(color: colors.foreground, width: 1.5),
-                    ),
-                    child: Column(
-                      children: List.generate(balances.length, (i) {
-                        final b = balances[i];
-                        return _balanceTile(context, b, userId, names, colors, typo, i == 0);
-                      }),
-                    ),
+                  Column(
+                    children: List.generate(balances.length, (i) {
+                      final b = balances[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _balanceTile(context, b, userId, names, colors, typo),
+                      );
+                    }),
                   ),
               ],
             );
@@ -320,7 +353,7 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
   }
 
   Widget _balanceTile(
-      BuildContext context, NetBalance b, String? userId, Map<String, String> names, FColors colors, FTypography typo, bool isFirst) {
+      BuildContext context, NetBalance b, String? userId, Map<String, String> names, FColors colors, FTypography typo) {
     final bool owes;
     final String otherId;
     if (userId == b.userA) {
@@ -346,13 +379,17 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: isFirst ? null : Border(top: BorderSide(color: colors.foreground, width: 1.0)),
+          color: colors.card,
+          border: Border.all(color: colors.foreground, width: 1.5),
+          boxShadow: [
+            BoxShadow(color: colors.foreground, offset: const Offset(3, 3)),
+          ],
         ),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 border: Border.all(color: colors.foreground, width: 1.5),
@@ -361,8 +398,8 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
               child: Text(
                 initial,
                 style: typo.lg.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                   color: colors.foreground,
                 ),
               ),
@@ -376,7 +413,7 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                     name,
                     style: typo.lg.copyWith(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: colors.foreground,
                     ),
                   ),
@@ -384,7 +421,8 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                   Text(
                     label,
                     style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                       color: colors.mutedForeground,
                     ),
                   ),
@@ -394,13 +432,13 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
             Text(
               _fmt.format(amount),
               style: typo.lg.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
                 color: colors.foreground,
               ),
             ),
             const SizedBox(width: 12),
-            Icon(FIcons.chevronRight, size: 16, color: colors.foreground),
+            Icon(FIcons.chevronRight, size: 18, color: colors.foreground),
           ],
         ),
       ),
