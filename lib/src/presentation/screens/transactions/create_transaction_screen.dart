@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/group_providers.dart';
 import '../../providers/transaction_providers.dart';
+import '../../../core/utils/split_calculator.dart';
 import '../../../domain/entities/group.dart';
 
 class CreateTransactionScreen extends ConsumerStatefulWidget {
@@ -876,19 +877,11 @@ class _CreateTransactionScreenState
       }
     } else {
       final allIncluded = _participants.where((p) => p.included).toList();
-      final n = allIncluded.length;
-      final perPerson = (totalAmount / n * 100).round() / 100;
-      double assigned = 0;
-      for (int i = 0; i < others.length; i++) {
-        final isLast = i == others.length - 1;
-        final amount = isLast
-            ? double.parse(
-                (totalAmount - perPerson - assigned).toStringAsFixed(2),
-              )
-            : perPerson;
-        maps.add({'user_id': others[i].userId, 'amount_due': amount});
-        assigned += perPerson;
-      }
+      maps.addAll(equalSplit(
+        totalAmount: totalAmount,
+        totalParticipants: allIncluded.length,
+        otherUserIds: others.map((p) => p.userId).toList(),
+      ));
     }
 
     try {
