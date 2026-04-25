@@ -6,8 +6,6 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/payment_providers.dart';
-import '../../providers/user_providers.dart';
-
 /// Two modes: "I paid someone" (mark payment) vs "Request payment from someone"
 enum PaymentMode { iPaid, requestPayment }
 
@@ -83,31 +81,27 @@ class _CreatePaymentRequestScreenState
     setState(() => _isSubmitting = true);
     try {
       final repo = ref.read(paymentRepositoryProvider);
+      final note = _noteController.text.trim().isNotEmpty
+          ? _noteController.text.trim()
+          : null;
       if (_isIPaid) {
-        // "I paid" = I'm the payer, they receive
+        // "I paid" = current user is payer, selected user receives
         await repo.createPaymentRequest(
           receiverId: _selectedUserId!,
           amount: amount,
           method: 'direct',
-          note: _noteController.text.trim().isNotEmpty
-              ? _noteController.text.trim()
-              : null,
+          note: note,
         );
       } else {
-        // "Request payment" = they are the payer, I receive
-        // We swap: payer=them, but the API creates with current user as payer
-        // Actually the payment_request model: payer marks "I paid" → receiver confirms
-        // So for requesting: we create with payer=selectedUser (they pay us)
-        final client = ref.read(supabaseClientProvider);
-        await client.from('payment_requests').insert({
-          'payer_id': _selectedUserId!,
-          'receiver_id': client.auth.currentUser!.id,
-          'amount': amount,
-          'method': 'direct',
-          'note': _noteController.text.trim().isNotEmpty
-              ? _noteController.text.trim()
-              : 'Payment requested',
-        });
+        // "Request payment" = selected user is payer, current user receives
+        final myId = ref.read(supabaseClientProvider).auth.currentUser!.id;
+        await repo.createPaymentRequest(
+          payerId: _selectedUserId!,
+          receiverId: myId,
+          amount: amount,
+          method: 'direct',
+          note: note,
+        );
       }
 
       ref.invalidate(balancesProvider);

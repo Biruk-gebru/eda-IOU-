@@ -44,13 +44,14 @@ class PaymentRepository {
   Future<PaymentRequest> createPaymentRequest({
     required String receiverId,
     required double amount,
+    String? payerId,
     String? relatedTransactionId,
     String? groupId,
     String? method,
     String? note,
   }) async {
     final data = await _client.from('payment_requests').insert({
-      'payer_id': _userId,
+      'payer_id': payerId ?? _userId,
       'receiver_id': receiverId,
       'amount': amount,
       'related_transaction_id': relatedTransactionId,
@@ -59,6 +60,15 @@ class PaymentRepository {
       'note': note,
     }).select().single();
     return PaymentRequest.fromJson(data);
+  }
+
+  Future<List<PaymentRequest>> getGroupPaymentRequests(String groupId) async {
+    final data = await _client
+        .from('payment_requests')
+        .select()
+        .eq('group_id', groupId)
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => PaymentRequest.fromJson(e)).toList();
   }
 
   Future<void> confirmPayment(String paymentRequestId) async {
