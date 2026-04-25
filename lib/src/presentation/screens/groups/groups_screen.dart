@@ -116,10 +116,6 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                     ),
                   ),
                   data: (groups) {
-                    if (groups.isEmpty) {
-                      return _emptyState(colors, typo);
-                    }
-
                     return ListView(
                       padding: const EdgeInsets.only(bottom: 24),
                       children: [
@@ -142,7 +138,8 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Invitations inbox
+                        // Invitations inbox — always rendered so it shows
+                        // even when the user has no active groups yet.
                         Consumer(builder: (context, ref, _) {
                           final invites =
                               ref.watch(pendingInvitationsProvider).valueOrNull;
@@ -187,75 +184,80 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                           );
                         }),
 
-                        // Group tiles
-                        Container(
-                          decoration: BoxDecoration(
-                            color: colors.card,
-                            border: Border.all(
-                                color: colors.foreground, width: 1.5),
-                          ),
-                          child: Column(
-                            children: List.generate(groups.length, (i) {
-                              final g = groups[i];
-                              return GestureDetector(
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => GroupDetailScreen(
-                                        groupId: g.id, groupName: g.name),
+                        // Group tiles or inline empty state
+                        if (groups.isEmpty)
+                          _emptyState(colors, typo)
+                        else
+                          Container(
+                            decoration: BoxDecoration(
+                              color: colors.card,
+                              border: Border.all(
+                                  color: colors.foreground, width: 1.5),
+                            ),
+                            child: Column(
+                              children: List.generate(groups.length, (i) {
+                                final g = groups[i];
+                                return GestureDetector(
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => GroupDetailScreen(
+                                          groupId: g.id, groupName: g.name),
+                                    ),
                                   ),
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    border: i == 0
-                                        ? null
-                                        : Border(
-                                            top: BorderSide(
-                                                color: colors.foreground,
-                                                width: 1.0)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      _avatarBox(g.name, colors, typo),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              g.name,
-                                              style: typo.lg.copyWith(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: colors.foreground,
-                                              ),
-                                            ),
-                                            if (g.description != null) ...[
-                                              const SizedBox(height: 2),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      border: i == 0
+                                          ? null
+                                          : Border(
+                                              top: BorderSide(
+                                                  color: colors.foreground,
+                                                  width: 1.0)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        _avatarBox(g.name, colors, typo),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
                                               Text(
-                                                g.description!,
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 13,
-                                                  color: colors.mutedForeground,
+                                                g.name,
+                                                style: typo.lg.copyWith(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: colors.foreground,
                                                 ),
-                                                maxLines: 1,
-                                                overflow:
-                                                    TextOverflow.ellipsis,
                                               ),
+                                              if (g.description != null) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  g.description!,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 13,
+                                                    color:
+                                                        colors.mutedForeground,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
                                             ],
-                                          ],
+                                          ),
                                         ),
-                                      ),
-                                      Icon(FIcons.chevronRight,
-                                          size: 16, color: colors.foreground),
-                                    ],
+                                        Icon(FIcons.chevronRight,
+                                            size: 16,
+                                            color: colors.foreground),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              );
-                            }),
+                                );
+                              }),
+                            ),
                           ),
-                        ),
                       ],
                     );
                   },
@@ -269,9 +271,11 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
   }
 
   Widget _emptyState(FColors colors, FTypography typo) {
-    return Center(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 72,
