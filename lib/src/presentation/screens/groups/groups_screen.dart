@@ -20,166 +20,204 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
     final typo = context.theme.typography;
     final groupsAsync = ref.watch(groupListProvider);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ───────────────────────────────────────────────────────
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+    return Scaffold(
+      backgroundColor: colors.background, // Paper
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  'Groups',
-                  style: GoogleFonts.outfit(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: colors.foreground,
-                  ),
-                ),
-              ),
-              FButton(
-                onPress: () => _showCreateGroupDialog(context),
-                prefix: const Icon(FIcons.plus),
-                child: const Text('New group'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // ── Content ───────────────────────────────────────────────────────
-          Expanded(
-            child: groupsAsync.when(
-              loading: () => const Center(child: FCircularProgress()),
-              error: (error, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(FIcons.circleAlert, size: 36, color: colors.destructive),
-                    const SizedBox(height: 12),
-                    Text('Something went wrong',
-                        style: typo.sm.copyWith(color: colors.mutedForeground)),
-                    const SizedBox(height: 16),
-                    FButton(
-                      variant: FButtonVariant.outline,
-                      onPress: () => ref.invalidate(groupListProvider),
-                      prefix: const Icon(FIcons.refreshCw),
-                      child: const Text('Retry'),
+              // ── Header ───────────────────────────────────────────────────────
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Groups',
+                      style: typo.xl2.copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                        letterSpacing: -0.28,
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _showCreateGroupDialog(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: colors.primary, // Accent
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.foreground,
+                            offset: const Offset(2, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(FIcons.plus, size: 16, color: colors.foreground),
+                          const SizedBox(width: 6),
+                          Text(
+                            'New group',
+                            style: typo.sm.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              data: (groups) {
-                if (groups.isEmpty) {
-                  return Center(
+              const SizedBox(height: 24),
+
+              // ── Content ───────────────────────────────────────────────────────
+              Expanded(
+                child: groupsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+                  error: (error, _) => Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: colors.secondary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: colors.border),
-                          ),
-                          child: Icon(FIcons.users, size: 30, color: colors.mutedForeground),
-                        ),
+                        Icon(FIcons.circleAlert, size: 36, color: colors.destructive),
+                        const SizedBox(height: 12),
+                        Text('Something went wrong',
+                            style: GoogleFonts.inter(color: colors.mutedForeground)),
                         const SizedBox(height: 16),
-                        Text('No groups yet',
-                            style: GoogleFonts.outfit(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: colors.foreground,
-                            )),
-                        const SizedBox(height: 6),
-                        Text('Create one to track shared expenses',
-                            style: typo.sm.copyWith(color: colors.mutedForeground)),
-                        const SizedBox(height: 24),
-                        FButton(
-                          onPress: () => _showCreateGroupDialog(context),
-                          prefix: const Icon(FIcons.plus),
-                          child: const Text('Create group'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  children: [
-                    // Mini-stats row
-                    Row(
-                      children: [
-                        _statCard('${groups.length}', 'Total groups', FIcons.users, colors, typo),
-                        const SizedBox(width: 12),
-                        _statCard('0', 'Pending', FIcons.clock, colors, typo),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Group tiles
-                    FTileGroup(
-                      children: [
-                        for (final g in groups)
-                          FTile(
-                            prefix: _avatarCircle(g.name, colors, typo),
-                            title: Text(g.name,
-                                style: typo.sm
-                                    .copyWith(fontWeight: FontWeight.w500, color: colors.foreground)),
-                            subtitle: g.description != null
-                                ? Text(g.description!,
-                                    style: typo.xs.copyWith(color: colors.mutedForeground))
-                                : null,
-                            suffix: Icon(FIcons.chevronRight, size: 14, color: colors.border),
-                            onPress: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => GroupDetailScreen(groupId: g.id, groupName: g.name),
+                        GestureDetector(
+                          onTap: () => ref.invalidate(groupListProvider),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: colors.foreground, width: 1.5),
+                            ),
+                            child: Text(
+                              'Retry',
+                              style: typo.sm.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
                               ),
                             ),
                           ),
+                        ),
                       ],
                     ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                  ),
+                  data: (groups) {
+                    if (groups.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: colors.foreground, width: 1.5),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(FIcons.users, size: 30, color: colors.foreground),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'No groups yet',
+                              style: typo.lg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Create one to track shared expenses',
+                              style: GoogleFonts.inter(color: colors.mutedForeground),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
 
-  Widget _statCard(String value, String label, IconData icon, FColors colors, FTypography typo) {
-    return Expanded(
-      child: FCard.raw(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: colors.secondary,
-                  borderRadius: BorderRadius.circular(8),
+                    return ListView(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      children: [
+                        // Mini-stats row
+                        Row(
+                          children: [
+                            _statCard('${groups.length}', 'Total groups', colors, typo),
+                            const SizedBox(width: 12),
+                            _statCard('0', 'Pending', colors, typo),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Group tiles
+                        Container(
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                          ),
+                          child: Column(
+                            children: List.generate(groups.length, (i) {
+                              final g = groups[i];
+                              return GestureDetector(
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => GroupDetailScreen(groupId: g.id, groupName: g.name),
+                                  ),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    border: i == 0 ? null : Border(top: BorderSide(color: colors.foreground, width: 1.0)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _avatarBox(g.name, colors, typo),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              g.name,
+                                              style: typo.lg.copyWith(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: colors.foreground,
+                                              ),
+                                            ),
+                                            if (g.description != null) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                g.description!,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 13,
+                                                  color: colors.mutedForeground,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      Icon(FIcons.chevronRight, size: 16, color: colors.foreground),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                child: Icon(icon, size: 16, color: colors.mutedForeground),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(value,
-                      style: GoogleFonts.outfit(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: colors.foreground,
-                      )),
-                  Text(label, style: typo.xs.copyWith(color: colors.mutedForeground)),
-                ],
               ),
             ],
           ),
@@ -188,48 +226,76 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
     );
   }
 
-  Widget _avatarCircle(String name, FColors colors, FTypography typo) {
+  Widget _statCard(String value, String label, FColors colors, FTypography typo) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.card,
+          border: Border.all(color: colors.foreground, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: colors.foreground,
+              offset: const Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+                color: colors.mutedForeground,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: typo.xl3.copyWith(
+                fontSize: 32,
+                fontWeight: FontWeight.w600,
+                color: colors.foreground,
+                letterSpacing: -0.64,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _avatarBox(String name, FColors colors, FTypography typo) {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: colors.secondary,
-        shape: BoxShape.circle,
-        border: Border.all(color: colors.border),
+        color: Colors.transparent,
+        border: Border.all(color: colors.foreground, width: 1.5),
       ),
       alignment: Alignment.center,
-      child: Text(initial,
-          style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+      child: Text(
+        initial,
+        style: typo.lg.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: colors.foreground,
+        ),
+      ),
     );
   }
 
   void _showCreateGroupDialog(BuildContext context) {
-    showFDialog(
+    showDialog(
       context: context,
-      builder: (ctx, style, animation) => FDialog.raw(
-        animation: animation,
-        builder: (ctx, style) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Create group',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: context.theme.colors.foreground,
-                  )),
-              const SizedBox(height: 4),
-              Text('Add a new group to track shared expenses.',
-                  style: context.theme.typography.sm
-                      .copyWith(color: context.theme.colors.mutedForeground)),
-              const SizedBox(height: 20),
-              const _CreateGroupForm(),
-            ],
-          ),
-        ),
+      builder: (ctx) => const Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.all(22),
+        child: _CreateGroupForm(),
       ),
     );
   }
@@ -256,40 +322,162 @@ class _CreateGroupFormState extends ConsumerState<_CreateGroupForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FTextField(
-          label: const Text('Name'),
-          hint: 'e.g. Work trip, Roommates',
-          control: FTextFieldControl.managed(controller: _nameCtl),
-          enabled: !_loading,
-        ),
-        const SizedBox(height: 12),
-        FTextField.multiline(
-          label: const Text('Description (optional)'),
-          hint: 'What is this group for?',
-          control: FTextFieldControl.managed(controller: _descCtl),
-          minLines: 2,
-          maxLines: 3,
-          enabled: !_loading,
-        ),
-        const SizedBox(height: 20),
-        FButton(
-          onPress: _loading ? null : _submit,
-          prefix: _loading
-              ? const SizedBox(width: 16, height: 16, child: FCircularProgress())
-              : const Icon(FIcons.check),
-          child: const Text('Create'),
-        ),
-        const SizedBox(height: 8),
-        FButton(
-          variant: FButtonVariant.outline,
-          onPress: _loading ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-      ],
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colors.background, // Paper
+        border: Border.all(color: colors.foreground, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: colors.foreground,
+            offset: const Offset(6, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Create group',
+            style: typo.lg.copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: colors.foreground,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Add a new group to track shared expenses.',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: colors.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          Text(
+            'NAME',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: colors.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _nameCtl,
+            enabled: !_loading,
+            style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+            decoration: InputDecoration(
+              hintText: 'e.g. Work trip, Roommates',
+              hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: colors.foreground, width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: colors.foreground, width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: colors.foreground, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          Text(
+            'DESCRIPTION (OPTIONAL)',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: colors.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _descCtl,
+            enabled: !_loading,
+            minLines: 2,
+            maxLines: 3,
+            style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+            decoration: InputDecoration(
+              hintText: 'What is this group for?',
+              hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: colors.foreground, width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: colors.foreground, width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: colors.foreground, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 28),
+          
+          GestureDetector(
+            onTap: _loading ? null : _submit,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: colors.primary,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(3, 3),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: _loading
+                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2))
+                  : Text(
+                      'Create',
+                      style: typo.sm.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _loading ? null : () => Navigator.of(context).pop(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(color: colors.foreground, width: 1.5),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                'Cancel',
+                style: typo.sm.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
