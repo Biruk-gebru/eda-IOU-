@@ -22,11 +22,17 @@ class GroupRepository {
     if (isOffline) return _getCachedGroups();
 
     try {
+      // Only return groups where the current user has an active membership.
+      // Pending invitees must accept before the group appears in their list.
       final data = await _client
-          .from('groups')
-          .select()
+          .from('group_members')
+          .select('groups(*)')
+          .eq('user_id', _userId!)
+          .eq('status', 'active')
           .order('created_at', ascending: false);
-      final groups = (data as List).map((e) => Group.fromJson(e)).toList();
+      final groups = (data as List)
+          .map((e) => Group.fromJson(e['groups'] as Map<String, dynamic>))
+          .toList();
       await _cacheGroups(groups);
       return groups;
     } catch (e) {
