@@ -1,83 +1,43 @@
-# EDA — IoU Expense Tracker
+# EDA — Split expenses, track debts, get paid back.
 
-A Flutter mobile app for tracking shared expenses, approvals, and payments between users. Groups and individuals can track who owes whom, approve transactions, and confirm payments.
+EDA is a mobile app that makes it easy to track who owes whom in your friend group, dorm, or household. Create shared expenses, request payments, and keep everyone's balances up to date — all in Ethiopian Birr.
 
-## Stack
+---
 
-- **Frontend:** Flutter (Clean Architecture)
-- **State management:** Riverpod
-- **Backend:** Supabase (PostgreSQL + Auth + Realtime)
-- **Local cache:** Hive
-- **Design system:** Forui (monochromatic, Material 3)
+## What you can do
 
-## Getting Started
+### Home
+See your overall balance at a glance — how much you owe and how much others owe you this month. From here you can start a new expense, request payment from someone who owes you, or scan a QR receipt.
 
-### Prerequisites
+### Groups
+Create shared expense groups for your dorm, housemates, or any recurring situation. Invite friends by searching their name — they receive an invitation and can accept or decline. Once in a group, any member can log an expense and split it equally or however makes sense.
 
-- Flutter SDK ≥ 3.x
-- A Supabase project with the schema from `SUPABASE_SETUP.md`
+### Personal
+See a list of every person you have an open balance with. Tap any name to see the full history between you two, request payment, or confirm a payment they've marked as sent.
 
-### Environment Setup
+### Stats
+A quick financial overview: total transactions, active balances, a donut chart of what you owe vs. what's owed to you, and a monthly spending bar chart so you can see how things trend over time.
 
-Copy `.env.example` to `.env` and fill in your credentials:
+### Settings
+Switch between light and dark mode, toggle push notifications on or off, and manage your profile and banking info so others know how to pay you back.
 
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_REDIRECT_URL=com.example.eda://login-callback/
-```
+---
 
-### Run
+## How a typical flow works
 
-```bash
-flutter pub get
-flutter run
-```
+1. **You pay for dinner** → tap "New IOU", add the people at the table, enter the total, split equally. Everyone gets notified.
+2. **Your friend marks it paid** → they open Personal, find your name, enter the amount they sent, and submit.
+3. **You confirm** → you get a notification, open the request, tap Confirm. The balance updates instantly.
+4. **Balance hits zero** → the person disappears from your list automatically.
 
-### Code Generation (after editing Freezed models)
+---
 
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
+## Signing in
 
-## Features
+EDA uses Google sign-in or email/password. On first launch you'll set a display name and add your bank account details (CBE, Telebirr, Zemen, etc.) so people can pay you back through the right channel.
 
-- Google OAuth + email/password authentication
-- Onboarding: display name, Ethiopian bank account info
-- Create and manage groups; add members by name search
-- Create transactions with equal or custom splits
-- Participant approval flow (majority vote, 48 h timeout)
-- Pairwise net balance tracking (atomic Postgres RPC)
-- Payment requests with two-step confirmation
-- Settlement / redirect payment flow (A pays C to clear A→B and B→C)
-- Real-time in-app notifications (Supabase Realtime)
-- Offline support via Hive cache
-- Dark and light mode
+---
 
-## Sprint Status
+## Privacy
 
-| Sprint | Description | Status |
-|--------|-------------|--------|
-| 0 | Scaffold, entities, Supabase wired, OAuth | ✅ Complete |
-| 1 | All screens, repositories, Riverpod providers | ✅ Complete |
-| 2 | Transaction create/vote/apply RPC | ✅ Complete |
-| 3 | Net balance netting, personal tab | ✅ Complete |
-| 4 | Payment requests + confirmation RPC | ✅ Complete |
-| 5 | Settlement flow, notifications, polish | ✅ Complete |
-
-## Project Structure
-
-```
-lib/src/
-├── core/          # DI, Supabase config, connectivity
-├── domain/        # Entities (Freezed), repository interfaces
-├── data/          # Repository implementations, Supabase datasource
-└── presentation/  # Screens, Riverpod providers, controllers, theme
-```
-
-## Key Conventions
-
-- Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
-- Currency: ETB (Ethiopian Birr)
-- Timestamps: UTC stored, locale-displayed
-- `net_balances` ordering: `user_a < user_b` (lexicographic UUID)
+All data lives in your Supabase project. Only users you share groups or transactions with can see your balance information. Notification content stays on-device unless you enable push.
