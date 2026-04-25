@@ -551,7 +551,8 @@ class _CreateGroupFormState extends ConsumerState<_CreateGroupForm> {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
 
-    return Container(
+    return SingleChildScrollView(
+      child: Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: colors.background,
@@ -632,6 +633,7 @@ class _CreateGroupFormState extends ConsumerState<_CreateGroupForm> {
           ),
         ],
       ),
+    ),
     );
   }
 
