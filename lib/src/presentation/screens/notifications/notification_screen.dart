@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../domain/entities/notification.dart';
 import '../../providers/notification_providers.dart';
+import '../../providers/shell_provider.dart';
 
 class NotificationScreen extends ConsumerWidget {
   const NotificationScreen({super.key});
@@ -204,9 +205,10 @@ class NotificationScreen extends ConsumerWidget {
     return GestureDetector(
       onTap: () async {
         if (!notification.read) {
-          final repo = ref.read(notificationRepositoryProvider);
-          await repo.markAsRead(notification.id);
+          await ref.read(notificationRepositoryProvider).markAsRead(notification.id);
         }
+        if (!context.mounted) return;
+        _navigateTo(context, ref, notification.type);
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -287,6 +289,16 @@ class NotificationScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _navigateTo(BuildContext context, WidgetRef ref, String type) {
+    final tab = switch (type) {
+      'group_invitation' => 1,
+      'payment_request' || 'payment_confirmed' || 'payment_rejected' => 2,
+      _ => 0,
+    };
+    ref.read(shellTabProvider.notifier).state = tab;
+    Navigator.of(context).pop();
   }
 
   String _typeLabel(String type) {
