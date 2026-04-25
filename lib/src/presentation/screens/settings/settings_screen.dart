@@ -26,193 +26,370 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final typo = context.theme.typography;
     final userAsync = ref.watch(currentUserProvider);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 40),
-      children: [
-        Text('Settings',
-            style: GoogleFonts.outfit(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: colors.foreground,
-            )),
-        const SizedBox(height: 24),
+    return Scaffold(
+      backgroundColor: colors.background, // Paper
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 40),
+          children: [
+            Text(
+              'Settings',
+              style: typo.xl2.copyWith(
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                color: colors.foreground,
+                letterSpacing: -0.28,
+              ),
+            ),
+            const SizedBox(height: 24),
 
-        // ── Profile card ──────────────────────────────────────────────────
-        userAsync.when(
-          data: (user) {
-            final name = user?.displayName ?? 'Set up your profile';
-            final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-            final hasBanking = user?.accountNumber != null &&
-                (user?.accountNumber?.isNotEmpty ?? false);
-            return GestureDetector(
-              onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen())),
-              child: FCard.raw(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: colors.secondary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: colors.border, width: 1.5),
+            // ── Profile card ──────────────────────────────────────────────────
+            userAsync.when(
+              data: (user) {
+                final name = user?.displayName ?? 'Set up your profile';
+                final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+                final hasBanking = user?.accountNumber != null &&
+                    (user?.accountNumber?.isNotEmpty ?? false);
+                return GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.foreground,
+                          offset: const Offset(3, 3),
                         ),
-                        alignment: Alignment.center,
-                        child: Text(initial,
-                            style: GoogleFonts.outfit(
-                              fontSize: 20,
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initial,
+                            style: typo.xl3.copyWith(
+                              fontSize: 24,
                               fontWeight: FontWeight.w600,
                               color: colors.foreground,
-                            )),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(name,
-                                style: typo.md.copyWith(
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: typo.lg.copyWith(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w600,
                                   color: colors.foreground,
-                                )),
-                            const SizedBox(height: 2),
-                            Text(
-                              hasBanking
-                                  ? 'Banking info added'
-                                  : 'Tap to edit profile & banking',
-                              style: typo.xs.copyWith(color: colors.mutedForeground),
-                            ),
-                          ],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                hasBanking
+                                    ? 'Banking info added'
+                                    : 'Tap to edit profile & banking',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: colors.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Icon(FIcons.chevronRight, size: 16, color: colors.border),
-                    ],
+                        Icon(FIcons.chevronRight, size: 20, color: colors.foreground),
+                      ],
+                    ),
                   ),
+                );
+              },
+              loading: () => Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    Container(width: 54, height: 54, decoration: BoxDecoration(border: Border.all(color: colors.foreground, width: 1.5))),
+                    const SizedBox(width: 14),
+                    Text('Loading…', style: GoogleFonts.inter(color: colors.mutedForeground)),
+                  ],
                 ),
               ),
-            );
-          },
-          loading: () => FCard.raw(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+
+            const SizedBox(height: 32),
+
+            // ── Appearance ────────────────────────────────────────────────────
+            _sectionLabel('APPEARANCE', colors, typo),
+            const SizedBox(height: 12),
+            _themeSelector(ref, colors, typo),
+
+            const SizedBox(height: 32),
+
+            // ── Notifications ─────────────────────────────────────────────────
+            _sectionLabel('NOTIFICATIONS', colors, typo),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(3, 3),
+                  ),
+                ],
+              ),
+              child: Column(
                 children: [
-                  Container(width: 54, height: 54,
-                      decoration: BoxDecoration(color: colors.secondary, shape: BoxShape.circle)),
-                  const SizedBox(width: 14),
-                  Text('Loading…', style: typo.sm.copyWith(color: colors.mutedForeground)),
+                  _buildSwitchRow(
+                    'Push notifications',
+                    'Approvals, payments, reminders',
+                    _pushNotifications,
+                    (v) => setState(() => _pushNotifications = v),
+                    colors,
+                    typo,
+                  ),
+                  Container(height: 1.5, color: colors.foreground),
+                  _buildSwitchRow(
+                    'Email digests',
+                    'Daily summary of activity',
+                    _emailDigests,
+                    (v) => setState(() => _emailDigests = v),
+                    colors,
+                    typo,
+                  ),
                 ],
               ),
             ),
-          ),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
 
-        const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
-        // ── Appearance ────────────────────────────────────────────────────
-        _sectionLabel('APPEARANCE', colors, typo),
-        const SizedBox(height: 10),
-        _themeSelector(ref, colors, typo),
-
-        const SizedBox(height: 28),
-
-        // ── Notifications ─────────────────────────────────────────────────
-        _sectionLabel('NOTIFICATIONS', colors, typo),
-        const SizedBox(height: 10),
-        FCard.raw(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              children: [
-                FSwitch(
-                  label: const Text('Push notifications'),
-                  description: const Text('Approvals, payments, reminders'),
-                  value: _pushNotifications,
-                  onChange: (v) => setState(() => _pushNotifications = v),
-                ),
-                const SizedBox(height: 8),
-                const FDivider(),
-                const SizedBox(height: 8),
-                FSwitch(
-                  label: const Text('Email digests'),
-                  description: const Text('Daily summary of activity'),
-                  value: _emailDigests,
-                  onChange: (v) => setState(() => _emailDigests = v),
-                ),
-              ],
+            // ── Account ────────────────────────────────────────────────────────
+            _sectionLabel('ACCOUNT', colors, typo),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(3, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildActionRow(
+                    'Edit profile',
+                    FIcons.userPen,
+                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+                    colors,
+                    typo,
+                  ),
+                  Container(height: 1.5, color: colors.foreground),
+                  _buildActionRow(
+                    'Banking info',
+                    FIcons.landmark,
+                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BankInfoScreen())),
+                    colors,
+                    typo,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
 
-        const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
-        // ── Account ────────────────────────────────────────────────────────
-        _sectionLabel('ACCOUNT', colors, typo),
-        const SizedBox(height: 10),
-        FTileGroup(
-          children: [
-            FTile(
-              prefix: const Icon(FIcons.userPen),
-              title: const Text('Edit profile'),
-              suffix: const Icon(FIcons.chevronRight),
-              onPress: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+            // ── Support ────────────────────────────────────────────────────────
+            _sectionLabel('SUPPORT', colors, typo),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(3, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildActionRow('Help center', FIcons.lifeBuoy, () {}, colors, typo),
+                  Container(height: 1.5, color: colors.foreground),
+                  _buildActionRow('About', FIcons.info, () {}, colors, typo),
+                ],
+              ),
             ),
-            FTile(
-              prefix: const Icon(FIcons.landmark),
-              title: const Text('Banking info'),
-              suffix: const Icon(FIcons.chevronRight),
-              onPress: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const BankInfoScreen())),
+
+            const SizedBox(height: 32),
+
+            // ── Danger zone ─────────────────────────────────────────────────
+            _sectionLabel('DANGER ZONE', colors, typo),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => _confirmSignOut(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FIcons.logOut, size: 18, color: colors.foreground),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Sign out',
+                      style: typo.sm.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => _confirmDeleteAccount(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: colors.destructive,
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.foreground,
+                      offset: const Offset(3, 3),
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FIcons.trash2, size: 18, color: colors.foreground),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Delete account',
+                      style: typo.sm.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
 
-        const SizedBox(height: 28),
-
-        // ── Support ────────────────────────────────────────────────────────
-        _sectionLabel('SUPPORT', colors, typo),
-        const SizedBox(height: 10),
-        FTileGroup(
+  Widget _buildSwitchRow(String label, String description, bool value, ValueChanged<bool> onChanged, FColors colors, FTypography typo) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
           children: [
-            FTile(
-              prefix: const Icon(FIcons.lifeBuoy),
-              title: const Text('Help center'),
-              suffix: const Icon(FIcons.chevronRight),
-              onPress: () {},
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: typo.lg.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: colors.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            FTile(
-              prefix: const Icon(FIcons.info),
-              title: const Text('About'),
-              suffix: const Icon(FIcons.chevronRight),
-              onPress: () {},
+            // Custom Brutalist Switch
+            Container(
+              width: 44,
+              height: 24,
+              decoration: BoxDecoration(
+                color: value ? colors.primary : Colors.transparent,
+                border: Border.all(color: colors.foreground, width: 1.5),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 200),
+                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  margin: const EdgeInsets.all(1),
+                  decoration: BoxDecoration(
+                    color: colors.foreground,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
 
-        const SizedBox(height: 28),
-
-        // ── Danger zone ─────────────────────────────────────────────────
-        _sectionLabel('DANGER ZONE', colors, typo),
-        const SizedBox(height: 10),
-        FButton(
-          variant: FButtonVariant.outline,
-          onPress: () => _confirmSignOut(context),
-          prefix: const Icon(FIcons.logOut),
-          child: const Text('Sign out'),
+  Widget _buildActionRow(String label, IconData icon, VoidCallback onTap, FColors colors, FTypography typo) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: colors.foreground),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: typo.lg.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+            ),
+            Icon(FIcons.chevronRight, size: 20, color: colors.foreground),
+          ],
         ),
-        const SizedBox(height: 10),
-        FButton(
-          variant: FButtonVariant.destructive,
-          onPress: () => _confirmDeleteAccount(context),
-          prefix: const Icon(FIcons.trash2),
-          child: const Text('Delete account'),
-        ),
-      ],
+      ),
     );
   }
 
@@ -224,26 +401,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return Expanded(
         child: GestureDetector(
           onTap: () => ref.read(themeModeProvider.notifier).state = mode,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: selected ? colors.card : colors.secondary,
-              borderRadius: BorderRadius.circular(8),
+              color: selected ? colors.card : Colors.transparent,
               border: Border.all(
-                color: selected ? colors.foreground.withValues(alpha: 0.3) : colors.border,
+                color: colors.foreground,
+                width: 1.5,
               ),
+              boxShadow: selected ? [
+                BoxShadow(
+                  color: colors.foreground,
+                  offset: const Offset(3, 3),
+                )
+              ] : null,
             ),
             child: Column(
               children: [
-                Icon(icon, size: 18,
-                    color: selected ? colors.foreground : colors.mutedForeground),
-                const SizedBox(height: 4),
-                Text(label,
-                    style: typo.xs.copyWith(
-                      color: selected ? colors.foreground : colors.mutedForeground,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                    )),
+                Icon(icon, size: 20, color: colors.foreground),
+                const SizedBox(height: 8),
+                Text(
+                  label,
+                  style: typo.sm.copyWith(
+                    color: colors.foreground,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -254,9 +437,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Row(
       children: [
         chip(AppThemeMode.system, 'System', FIcons.monitor),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         chip(AppThemeMode.light, 'Light', FIcons.sun),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         chip(AppThemeMode.dark, 'Dark', FIcons.moon),
       ],
     );
@@ -264,78 +447,214 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _sectionLabel(String text, FColors colors, FTypography typo) => Text(
         text,
-        style: typo.xs.copyWith(
-          fontWeight: FontWeight.w600,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.6,
           color: colors.mutedForeground,
-          letterSpacing: 0.8,
         ),
       );
 
   Future<void> _confirmSignOut(BuildContext context) async {
-    await showFDialog(
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+    
+    await showDialog(
       context: context,
-      builder: (ctx, style, animation) => FDialog(
-        animation: animation,
-        direction: Axis.horizontal,
-        title: const Text('Sign out'),
-        body: const Text('Are you sure you want to sign out?'),
-        actions: [
-          FButton(
-            variant: FButtonVariant.destructive,
-            onPress: () async {
-              Navigator.of(ctx).pop();
-              try {
-                await ref.read(authControllerProvider).signOut();
-              } on AuthControllerException catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(e.message)));
-                }
-              }
-            },
-            child: const Text('Sign out'),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(22),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: colors.background,
+            border: Border.all(color: colors.foreground, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: colors.foreground,
+                offset: const Offset(6, 6),
+              ),
+            ],
           ),
-          FButton(
-            variant: FButtonVariant.outline,
-            onPress: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Sign out',
+                style: typo.lg.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Are you sure you want to sign out?',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 28),
+              GestureDetector(
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  try {
+                    await ref.read(authControllerProvider).signOut();
+                  } on AuthControllerException catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(e.message)));
+                    }
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: colors.destructive,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(3, 3),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Sign out',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cancel',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Future<void> _confirmDeleteAccount(BuildContext context) async {
-    await showFDialog(
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+    
+    await showDialog(
       context: context,
-      builder: (ctx, style, animation) => FDialog(
-        animation: animation,
-        direction: Axis.horizontal,
-        title: const Text('Delete account'),
-        body: const Text(
-            'This will permanently delete your account, all your data, groups, and transaction history. This cannot be undone.'),
-        actions: [
-          FButton(
-            variant: FButtonVariant.destructive,
-            onPress: () async {
-              Navigator.of(ctx).pop();
-              try {
-                await ref.read(authControllerProvider).deleteAccount();
-              } on AuthControllerException catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(e.message)));
-                }
-              }
-            },
-            child: const Text('Delete permanently'),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(22),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: colors.background,
+            border: Border.all(color: colors.foreground, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: colors.foreground,
+                offset: const Offset(6, 6),
+              ),
+            ],
           ),
-          FButton(
-            variant: FButtonVariant.outline,
-            onPress: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Delete account',
+                style: typo.lg.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This will permanently delete your account, all your data, groups, and transaction history. This cannot be undone.',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 28),
+              GestureDetector(
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  try {
+                    await ref.read(authControllerProvider).deleteAccount();
+                  } on AuthControllerException catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(e.message)));
+                    }
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: colors.destructive,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(3, 3),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Delete permanently',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cancel',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
