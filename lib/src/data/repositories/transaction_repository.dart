@@ -57,8 +57,13 @@ class TransactionRepository {
             .select()
             .order('created_at', ascending: false);
 
-        final transactions =
-            (data as List).map((e) => Transaction.fromJson(e)).toList();
+        // Deduplicate by id — guards against RLS policies that match multiple
+        // conditions on the same row (e.g. creator + group member).
+        final seen = <String>{};
+        final transactions = (data as List)
+            .map((e) => Transaction.fromJson(e))
+            .where((tx) => seen.add(tx.id))
+            .toList();
 
         await _cacheTransactions(transactions);
         return transactions;
@@ -135,6 +140,25 @@ class TransactionRepository {
     await _client.from('transactions')
         .delete()
         .eq('id', transactionId);
+    await _removeFromCache(transactionId);
+  }
+
+  Future<void> _removeFromCache(String transactionId) async {
+    try {
+      final box = await Hive.openBox<String>(_boxName);
+      final toDelete = <dynamic>[];
+      for (final key in box.keys) {
+        final raw = box.get(key);
+        if (raw == null) continue;
+        try {
+          final decoded = jsonDecode(raw) as Map<String, dynamic>;
+          if (decoded['id'] == transactionId) toDelete.add(key);
+        } catch (_) {}
+      }
+      for (final key in toDelete) {
+        await box.delete(key);
+      }
+    } catch (_) {}
   }
 
   Future<List<Transaction>> _getLocalTransactions() async {
