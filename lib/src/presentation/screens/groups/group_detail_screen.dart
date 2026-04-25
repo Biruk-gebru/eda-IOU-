@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/auth_providers.dart';
+import '../../providers/balance_providers.dart';
 import '../../providers/group_providers.dart';
 import '../../providers/payment_providers.dart';
 import '../../providers/transaction_providers.dart';
@@ -197,6 +198,10 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                   try {
                     await ref.read(groupRepositoryProvider).deleteGroup(widget.groupId);
                     ref.invalidate(groupListProvider);
+                    // Balances and payment history between people are preserved
+                    // (FK is SET NULL, not CASCADE). Invalidate so Personal tab
+                    // shows fresh data after the group is gone.
+                    ref.invalidate(balancesProvider);
                     if (context.mounted) Navigator.of(context).pop();
                   } catch (e) {
                     if (context.mounted) {
