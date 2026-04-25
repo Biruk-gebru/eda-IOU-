@@ -160,6 +160,19 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
               ],
             ),
 
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FButton(
+                variant: FButtonVariant.outline,
+                onPress: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettlementScreen()),
+                ),
+                prefix: const Icon(FIcons.arrowRightLeft),
+                child: const Text('Settlements'),
+              ),
+            ),
+
             const SizedBox(height: 28),
 
             // ── Net balances ──────────────────────────────────────────────────
