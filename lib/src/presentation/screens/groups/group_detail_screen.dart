@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 
 import '../../providers/auth_providers.dart';
 import '../../providers/group_providers.dart';
+import '../../providers/payment_providers.dart';
 import '../../providers/transaction_providers.dart';
 
 class GroupDetailScreen extends ConsumerWidget {
@@ -645,33 +646,113 @@ class _RequestsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Placeholder — will be backed by a payment request provider later.
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            FIcons.inbox,
-            size: 48,
-            color: context.theme.colors.mutedForeground,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No requests yet',
-            style: context.theme.typography.lg.copyWith(
-              color: context.theme.colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Payment requests for this group will appear here',
-            style: context.theme.typography.sm.copyWith(
-              color: context.theme.colors.mutedForeground,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+    final requestsAsync = ref.watch(groupPaymentRequestsProvider(groupId));
+    final currentUserId =
+        ref.watch(supabaseClientProvider).auth.currentUser?.id;
+    final repo = ref.watch(paymentRepositoryProvider);
+
+    return requestsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+      error: (e, _) => Center(
+        child: Text('Error: $e', style: typo.sm.copyWith(color: colors.destructive)),
       ),
+      data: (requests) {
+        if (requests.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(FIcons.inbox, size: 48, color: colors.mutedForeground),
+                const SizedBox(height: 12),
+                Text('No requests yet',
+                    style: typo.lg.copyWith(color: colors.mutedForeground)),
+                const SizedBox(height: 4),
+                Text('Payment requests for this group will appear here',
+                    style: typo.sm.copyWith(color: colors.mutedForeground),
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: requests.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, i) {
+            final req = requests[i];
+            final isReceiver = req.receiverId == currentUserId;
+            final isPending = req.status == 'pending';
+
+            return FCard.raw(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'ETB ${req.amount.toStringAsFixed(2)}',
+                            style: typo.sm.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground),
+                          ),
+                        ),
+                        FBadge(
+                          variant: req.status == 'confirmed'
+                              ? FBadgeVariant.primary
+                              : req.status == 'rejected'
+                                  ? FBadgeVariant.destructive
+                                  : FBadgeVariant.outline,
+                          child: Text(req.status),
+                        ),
+                      ],
+                    ),
+                    if (req.note != null) ...[
+                      const SizedBox(height: 4),
+                      Text(req.note!,
+                          style: typo.xs.copyWith(
+                              color: colors.mutedForeground)),
+                    ],
+                    if (isReceiver && isPending) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FButton(
+                              variant: FButtonVariant.destructive,
+                              onPress: () async {
+                                await repo.rejectPayment(req.id);
+                                ref.invalidate(
+                                    groupPaymentRequestsProvider(groupId));
+                              },
+                              child: const Text('Reject'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FButton(
+                              onPress: () async {
+                                await repo.confirmPayment(req.id);
+                                ref.invalidate(
+                                    groupPaymentRequestsProvider(groupId));
+                              },
+                              child: const Text('Confirm'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

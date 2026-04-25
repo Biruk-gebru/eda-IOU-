@@ -14,3 +14,8 @@ final paymentRequestsProvider =
   final repository = ref.watch(paymentRepositoryProvider);
   return repository.watchPaymentRequests();
 });
+
+final groupPaymentRequestsProvider =
+    FutureProvider.family<List<PaymentRequest>, String>((ref, groupId) async {
+  return ref.watch(paymentRepositoryProvider).getGroupPaymentRequests(groupId);
+});
