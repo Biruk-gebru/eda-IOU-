@@ -7,13 +7,40 @@ import '../../../domain/entities/settlement_request.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/settlement_providers.dart';
 
-class SettlementScreen extends ConsumerWidget {
+class SettlementScreen extends ConsumerStatefulWidget {
   const SettlementScreen({super.key});
 
+  @override
+  ConsumerState<SettlementScreen> createState() => _SettlementScreenState();
+}
+
+class _SettlementScreenState extends ConsumerState<SettlementScreen> {
   static final _fmt = NumberFormat.currency(symbol: 'ETB ');
+  final Map<String, String> _nameCache = {};
+
+  Future<String> _resolveName(String userId) async {
+    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
+    try {
+      final client = ref.read(supabaseClientProvider);
+      if (userId == client.auth.currentUser?.id) {
+        _nameCache[userId] = 'You';
+        return 'You';
+      }
+      final p = await client
+          .from('profiles')
+          .select('display_name')
+          .eq('id', userId)
+          .maybeSingle();
+      final name = p?['display_name'] as String? ?? 'Unknown';
+      _nameCache[userId] = name;
+      return name;
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = context.theme;
     final colors = theme.colors;
     final typo = theme.typography;
@@ -61,12 +88,10 @@ class SettlementScreen extends ConsumerWidget {
             );
           }
 
-          final pending = settlements
-              .where((s) => s.status == 'pending')
-              .toList();
-          final approved = settlements
-              .where((s) => s.status == 'approved')
-              .toList();
+          final pending =
+              settlements.where((s) => s.status == 'pending').toList();
+          final approved =
+              settlements.where((s) => s.status == 'approved').toList();
           final completed = settlements
               .where((s) =>
                   s.status == 'completed' || s.status == 'rejected')
@@ -78,22 +103,19 @@ class SettlementScreen extends ConsumerWidget {
               if (pending.isNotEmpty) ...[
                 _sectionLabel(typo, colors, 'Pending'),
                 const SizedBox(height: 8),
-                ...pending.map((s) =>
-                    _settlementTile(context, ref, s, userId, colors, typo)),
+                ...pending.map((s) => _settlementTile(s, userId, colors, typo)),
                 const SizedBox(height: 20),
               ],
               if (approved.isNotEmpty) ...[
                 _sectionLabel(typo, colors, 'Approved'),
                 const SizedBox(height: 8),
-                ...approved.map((s) =>
-                    _settlementTile(context, ref, s, userId, colors, typo)),
+                ...approved.map((s) => _settlementTile(s, userId, colors, typo)),
                 const SizedBox(height: 20),
               ],
               if (completed.isNotEmpty) ...[
                 _sectionLabel(typo, colors, 'Completed / Rejected'),
                 const SizedBox(height: 8),
-                ...completed.map((s) =>
-                    _settlementTile(context, ref, s, userId, colors, typo)),
+                ...completed.map((s) => _settlementTile(s, userId, colors, typo)),
               ],
             ],
           );
@@ -102,14 +124,10 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _sectionLabel(
-      FTypography typo, FColors colors, String text) {
+  Widget _sectionLabel(FTypography typo, FColors colors, String text) {
     return Text(
       text,
-      style: typo.sm.copyWith(
-        fontWeight: FontWeight.w600,
-        color: colors.foreground,
-      ),
+      style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
     );
   }
 
@@ -126,8 +144,6 @@ class SettlementScreen extends ConsumerWidget {
   }
 
   Widget _settlementTile(
-    BuildContext context,
-    WidgetRef ref,
     SettlementRequest settlement,
     String? userId,
     FColors colors,
@@ -150,9 +166,7 @@ class SettlementScreen extends ConsumerWidget {
                     child: Text(
                       'Redirect Payment',
                       style: typo.sm.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                      ),
+                          fontWeight: FontWeight.w600, color: colors.foreground),
                     ),
                   ),
                   FBadge(
@@ -165,17 +179,36 @@ class SettlementScreen extends ConsumerWidget {
               FTileGroup(
                 children: [
                   FTile(
-                    prefix: Icon(FIcons.user, size: 16, color: colors.mutedForeground),
-                    title: Text(
-                      'Payer: ${settlement.payerId.substring(0, 8)}...',
-                      style: typo.xs.copyWith(color: colors.foreground),
+                    prefix: Icon(FIcons.user, size: 16,
+                        color: colors.mutedForeground),
+                    title: FutureBuilder<String>(
+                      future: _resolveName(settlement.payerId),
+                      builder: (_, s) => Text(
+                        'Payer: ${s.data ?? "..."}',
+                        style: typo.xs.copyWith(color: colors.foreground),
+                      ),
                     ),
                   ),
                   FTile(
-                    prefix: Icon(FIcons.userCheck, size: 16, color: colors.mutedForeground),
-                    title: Text(
-                      'Receiver: ${settlement.receiverId.substring(0, 8)}...',
-                      style: typo.xs.copyWith(color: colors.foreground),
+                    prefix: Icon(FIcons.userCheck, size: 16,
+                        color: colors.mutedForeground),
+                    title: FutureBuilder<String>(
+                      future: _resolveName(settlement.receiverId),
+                      builder: (_, s) => Text(
+                        'Receiver: ${s.data ?? "..."}',
+                        style: typo.xs.copyWith(color: colors.foreground),
+                      ),
+                    ),
+                  ),
+                  FTile(
+                    prefix: Icon(FIcons.arrowRightLeft, size: 16,
+                        color: colors.mutedForeground),
+                    title: FutureBuilder<String>(
+                      future: _resolveName(settlement.initiatorId),
+                      builder: (_, s) => Text(
+                        'Initiated by: ${s.data ?? "..."}',
+                        style: typo.xs.copyWith(color: colors.foreground),
+                      ),
                     ),
                   ),
                 ],
@@ -184,9 +217,7 @@ class SettlementScreen extends ConsumerWidget {
               Text(
                 _fmt.format(settlement.amount),
                 style: typo.lg.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colors.primary,
-                ),
+                    fontWeight: FontWeight.bold, color: colors.primary),
               ),
               if (isPayer && isPending) ...[
                 const SizedBox(height: 12),
@@ -195,7 +226,7 @@ class SettlementScreen extends ConsumerWidget {
                     Expanded(
                       child: FButton(
                         variant: FButtonVariant.destructive,
-                        onPress: () => _rejectSettlement(context, ref, settlement.id),
+                        onPress: () => _rejectSettlement(settlement.id),
                         child: const Text('Reject'),
                       ),
                     ),
@@ -203,7 +234,7 @@ class SettlementScreen extends ConsumerWidget {
                     Expanded(
                       child: FButton(
                         variant: FButtonVariant.primary,
-                        onPress: () => _approveSettlement(context, ref, settlement.id),
+                        onPress: () => _approveSettlement(settlement.id),
                         child: const Text('Approve'),
                       ),
                     ),
@@ -217,40 +248,32 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _approveSettlement(
-      BuildContext context, WidgetRef ref, String id) async {
+  Future<void> _approveSettlement(String id) async {
     try {
-      final repository = ref.read(settlementRepositoryProvider);
-      await repository.approveSettlement(id);
-      if (context.mounted) {
+      await ref.read(settlementRepositoryProvider).approveSettlement(id);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settlement approved')),
-        );
+            const SnackBar(content: Text('Settlement approved')));
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
-  Future<void> _rejectSettlement(
-      BuildContext context, WidgetRef ref, String id) async {
+  Future<void> _rejectSettlement(String id) async {
     try {
-      final repository = ref.read(settlementRepositoryProvider);
-      await repository.rejectSettlement(id);
-      if (context.mounted) {
+      await ref.read(settlementRepositoryProvider).rejectSettlement(id);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settlement rejected')),
-        );
+            const SnackBar(content: Text('Settlement rejected')));
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
