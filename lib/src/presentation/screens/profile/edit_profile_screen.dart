@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/auth_providers.dart';
 import '../../providers/user_providers.dart';
@@ -108,83 +109,241 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final userAsync = ref.watch(currentUserProvider);
     userAsync.whenData((user) => _loadProfile(user));
 
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('Edit Profile'),
-        prefixes: [
-          FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
-        ],
-      ),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-        children: [
-          // Profile section
-          _label('NAME', colors, typo),
-          const SizedBox(height: 10),
-          FTextField(
-            control: FTextFieldControl.managed(controller: _nameController),
-            hint: 'Your name',
-            enabled: !_isLoading,
-            textCapitalization: TextCapitalization.words,
-            inputFormatters: [LengthLimitingTextInputFormatter(30)],
-          ),
-          const SizedBox(height: 12),
-          FButton(
-            variant: FButtonVariant.outline,
-            onPress: _isLoading ? null : _saveName,
-            child: const Text('Update name'),
-          ),
-
-          const SizedBox(height: 32),
-
-          // Banking section
-          Row(
-            children: [
-              Expanded(child: _label('BANK ACCOUNTS', colors, typo)),
-              FButton(
-                variant: FButtonVariant.outline,
-                onPress: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const BankInfoScreen()),
-                  );
-                  _loadBankAccounts();
-                },
-                prefix: const Icon(FIcons.plus),
-                child: const Text('Add'),
+    return Scaffold(
+      backgroundColor: colors.background, // Paper background
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ────────────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: colors.foreground, width: 1.5),
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (_bankAccounts.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: Text('No bank accounts added yet',
-                    style: typo.sm.copyWith(color: colors.mutedForeground)),
-              ),
-            )
-          else
-            FTileGroup(
-              children: [
-                for (final acct in _bankAccounts)
-                  FTile(
-                    prefix: Icon(
-                      acct['bank_type'] == 'telebirr'
-                          ? FIcons.smartphone
-                          : FIcons.landmark,
-                      color: colors.mutedForeground,
-                    ),
-                    title: Text(_bankLabel(acct['bank_type'] as String)),
-                    subtitle: Text(acct['account_identifier'] as String),
-                    suffix: FButton.icon(
-                      onPress: () => _deleteBankAccount(acct['id'] as String),
-                      child: Icon(FIcons.trash2,
-                          size: 16, color: colors.destructive),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '←',
+                        style: typo.lg.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
+                        ),
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Edit Profile',
+                      style: typo.lg.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Body ─────────────────────────────────────────────────────────
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+                children: [
+                  // Profile section
+                  _label('NAME', colors),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _nameController,
+                    enabled: !_isLoading,
+                    textCapitalization: TextCapitalization.words,
+                    inputFormatters: [LengthLimitingTextInputFormatter(30)],
+                    style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+                    decoration: InputDecoration(
+                      hintText: 'Your name',
+                      hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: _isLoading ? null : _saveName,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: _isLoading
+                          ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: colors.foreground))
+                          : Text(
+                              'Update name',
+                              style: typo.sm.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  // Banking section
+                  Row(
+                    children: [
+                      Expanded(child: _label('BANK ACCOUNTS', colors)),
+                      GestureDetector(
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const BankInfoScreen()),
+                          );
+                          _loadBankAccounts();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(FIcons.plus, size: 14, color: colors.foreground),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Add',
+                                style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (_bankAccounts.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Text(
+                          'No bank accounts added yet',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: colors.mutedForeground,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      decoration: BoxDecoration(
+                        color: colors.card,
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      child: Column(
+                        children: [
+                          for (int i = 0; i < _bankAccounts.length; i++)
+                            _bankAccountTile(_bankAccounts[i], i == 0, colors, typo),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bankAccountTile(Map<String, dynamic> acct, bool isFirst, FColors colors, FTypography typo) {
+    final type = acct['bank_type'] as String;
+    final isTelebirr = type == 'telebirr';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: isFirst ? null : Border(top: BorderSide(color: colors.foreground, width: 1.0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              border: Border.all(color: colors.foreground, width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              isTelebirr ? FIcons.smartphone : FIcons.landmark,
+              size: 16,
+              color: colors.foreground,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _bankLabel(type),
+                  style: typo.lg.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  acct['account_identifier'] as String,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12,
+                    color: colors.mutedForeground,
+                  ),
+                ),
               ],
             ),
+          ),
+          GestureDetector(
+            onTap: () => _deleteBankAccount(acct['id'] as String),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border.all(color: colors.foreground, width: 1.5),
+              ),
+              child: Icon(
+                FIcons.trash2,
+                size: 16,
+                color: colors.destructive,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -203,12 +362,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
-  Widget _label(String text, FColors colors, FTypography typo) => Text(
+  Widget _label(String text, FColors colors) => Text(
         text,
-        style: typo.xs.copyWith(
-          fontWeight: FontWeight.w600,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.6,
           color: colors.mutedForeground,
-          letterSpacing: 0.8,
         ),
       );
 }
