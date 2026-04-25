@@ -29,168 +29,287 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
     final balanceRepo = ref.watch(balanceRepositoryProvider);
     final userId = ref.watch(currentUserProvider).whenOrNull(data: (u) => u?.id);
 
-    return balancesAsync.when(
-      loading: () => const Center(child: FCircularProgress()),
-      error: (e, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
-            const SizedBox(height: 12),
-            Text('Failed to load balances',
-                style: typo.sm.copyWith(color: colors.mutedForeground)),
-          ],
-        ),
-      ),
-      data: (balances) {
-        final owe = balanceRepo.totalOwed(balances);
-        final owed = balanceRepo.totalOwedToMe(balances);
-        final otherIds = balances
-            .map((b) => userId == b.userA ? b.userB : b.userA)
-            .toList();
-        ref.read(profileNameCacheProvider.notifier).prefetch(otherIds);
-        final names = ref.watch(profileNameCacheProvider);
+    return Scaffold(
+      backgroundColor: colors.background, // Paper
+      body: SafeArea(
+        child: balancesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+          error: (e, _) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
+                const SizedBox(height: 12),
+                Text('Failed to load balances',
+                    style: typo.sm.copyWith(color: colors.mutedForeground)),
+              ],
+            ),
+          ),
+          data: (balances) {
+            final owe = balanceRepo.totalOwed(balances);
+            final owed = balanceRepo.totalOwedToMe(balances);
+            final otherIds = balances
+                .map((b) => userId == b.userA ? b.userB : b.userA)
+                .toList();
+            ref.read(profileNameCacheProvider.notifier).prefetch(otherIds);
+            final names = ref.watch(profileNameCacheProvider);
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
-          children: [
-            Text('Personal',
-                style: GoogleFonts.outfit(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: colors.foreground,
-                )),
-            const SizedBox(height: 4),
-            Text('Your peer-to-peer balances',
-                style: typo.xs.copyWith(color: colors.mutedForeground)),
-            const SizedBox(height: 20),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
+              children: [
+                Text(
+                  'Personal',
+                  style: typo.xl2.copyWith(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                    letterSpacing: -0.28,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Your peer-to-peer balances',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: colors.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 24),
 
-            // ── Summary card ─────────────────────────────────────────────────
-            FCard.raw(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-                child: Row(
+                // ── Summary card ─────────────────────────────────────────────────
+                Container(
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'YOU OWE',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                  color: colors.mutedForeground,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _fmt.format(owe),
+                                style: typo.xl3.copyWith(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.foreground,
+                                  letterSpacing: -0.56,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(width: 1.5, height: 90, color: colors.foreground),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'OWED TO YOU',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                  color: colors.mutedForeground,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _fmt.format(owed),
+                                style: typo.xl3.copyWith(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.foreground,
+                                  letterSpacing: -0.56,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── Action buttons ────────────────────────────────────────────────
+                Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('You owe',
-                              style: typo.xs.copyWith(color: colors.mutedForeground)),
-                          const SizedBox(height: 6),
-                          Text(
-                            _fmt.format(owe),
-                            style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: colors.destructive,
-                            ),
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const CreatePaymentRequestScreen(
+                                  mode: PaymentMode.iPaid)),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors.foreground,
+                                offset: const Offset(2, 2),
+                              ),
+                            ],
                           ),
-                        ],
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(FIcons.check, size: 16, color: colors.foreground),
+                              const SizedBox(width: 6),
+                              Text(
+                                'I paid',
+                                style: typo.sm.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    Container(width: 1, height: 40, color: colors.border),
-                    const SizedBox(width: 22),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Owed to you',
-                              style: typo.xs.copyWith(color: colors.mutedForeground)),
-                          const SizedBox(height: 6),
-                          Text(
-                            _fmt.format(owed),
-                            style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF34D399),
-                            ),
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const CreatePaymentRequestScreen(
+                                  mode: PaymentMode.requestPayment)),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors.foreground,
+                                offset: const Offset(2, 2),
+                              ),
+                            ],
                           ),
-                        ],
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(FIcons.handCoins, size: 16, color: colors.foreground),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Request',
+                                style: typo.sm.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 28),
-
-            // ── Action buttons ────────────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: FButton(
-                    onPress: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const CreatePaymentRequestScreen(
-                              mode: PaymentMode.iPaid)),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettlementScreen()),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.foreground,
+                          offset: const Offset(2, 2),
+                        ),
+                      ],
                     ),
-                    prefix: const Icon(FIcons.check),
-                    child: const Text('I paid'),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(FIcons.arrowRightLeft, size: 16, color: colors.foreground),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Settlements',
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FButton(
-                    variant: FButtonVariant.outline,
-                    onPress: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const CreatePaymentRequestScreen(
-                              mode: PaymentMode.requestPayment)),
-                    ),
-                    prefix: const Icon(FIcons.handCoins),
-                    child: const Text('Request'),
+
+                const SizedBox(height: 32),
+
+                // ── Net balances ──────────────────────────────────────────────────
+                Text(
+                  'NET BALANCES',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.6,
+                    color: colors.mutedForeground,
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                if (balances.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Center(
+                      child: Text('All settled up 🎉',
+                          style: GoogleFonts.inter(fontSize: 14, color: colors.mutedForeground)),
+                    ),
+                  )
+                else
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                    ),
+                    child: Column(
+                      children: List.generate(balances.length, (i) {
+                        final b = balances[i];
+                        return _balanceTile(context, b, userId, names, colors, typo, i == 0);
+                      }),
+                    ),
+                  ),
               ],
-            ),
-
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FButton(
-                variant: FButtonVariant.outline,
-                onPress: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettlementScreen()),
-                ),
-                prefix: const Icon(FIcons.arrowRightLeft),
-                child: const Text('Settlements'),
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // ── Net balances ──────────────────────────────────────────────────
-            Text('Net balances',
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: colors.foreground,
-                )),
-            const SizedBox(height: 12),
-
-            if (balances.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: Text('All settled up 🎉',
-                      style: typo.sm.copyWith(color: colors.mutedForeground)),
-                ),
-              )
-            else
-              ...balances.map((b) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: _balanceTile(context, b, userId, names, colors, typo),
-              )),
-          ],
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 
   Widget _balanceTile(
-      BuildContext context, NetBalance b, String? userId, Map<String, String> names, FColors colors, FTypography typo) {
+      BuildContext context, NetBalance b, String? userId, Map<String, String> names, FColors colors, FTypography typo, bool isFirst) {
     final bool owes;
     final String otherId;
     if (userId == b.userA) {
@@ -201,41 +320,79 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
       owes = b.netAmount < 0;
     }
     final amount = b.netAmount.abs();
-    final color = owes ? colors.destructive : const Color(0xFF34D399);
     final label = owes ? 'You owe' : 'Owes you';
     final name = names[otherId] ?? '...';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
-    return FTile(
-      prefix: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          shape: BoxShape.circle,
-        ),
-        alignment: Alignment.center,
-        child: Text(initial,
-            style: typo.xs
-                .copyWith(fontWeight: FontWeight.w600, color: color)),
-      ),
-      title: Text(name,
-          style: typo.sm.copyWith(
-              fontWeight: FontWeight.w500, color: colors.foreground)),
-      subtitle: Text(label,
-          style: typo.xs.copyWith(color: colors.mutedForeground)),
-      details: Text(_fmt.format(amount),
-          style:
-              typo.sm.copyWith(fontWeight: FontWeight.w600, color: color)),
-      suffix: Icon(FIcons.chevronRight,
-          size: 14, color: colors.mutedForeground),
-      onPress: () => Navigator.of(context).push(MaterialPageRoute(
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => PersonDetailScreen(
           otherUserId: otherId,
           amount: amount,
           iOwe: owes,
         ),
       )),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: isFirst ? null : Border(top: BorderSide(color: colors.foreground, width: 1.0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(color: colors.foreground, width: 1.5),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                initial,
+                style: typo.lg.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: typo.lg.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      color: colors.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              _fmt.format(amount),
+              style: typo.lg.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: colors.foreground,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(FIcons.chevronRight, size: 16, color: colors.foreground),
+          ],
+        ),
+      ),
     );
   }
 }
