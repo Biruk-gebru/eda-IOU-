@@ -10,7 +10,7 @@ import '../../providers/notification_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
 import '../notifications/notification_screen.dart';
-import '../payments/create_payment_request_screen.dart';
+import '../personal/person_detail_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
 
@@ -169,12 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       label: 'Request',
                       sub: 'Ask to pay',
                       fill: colors.card,
-                      onTap: () => _open(
-                        context,
-                        const CreatePaymentRequestScreen(
-                          mode: PaymentMode.requestPayment,
-                        ),
-                      ),
+                      onTap: () => _showRequestSheet(context),
                     ),
                     const SizedBox(width: 10),
                     _actionTile(
@@ -662,5 +657,200 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _open(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _showRequestSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _RequestPaymentSheet(),
+    );
+  }
+}
+
+// ── Request payment sheet ────────────────────────────────────────────────────
+
+class _RequestPaymentSheet extends ConsumerWidget {
+  const _RequestPaymentSheet();
+
+  static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+    final balancesAsync = ref.watch(balancesProvider);
+    final currentUserId =
+        ref.watch(currentUserProvider).whenOrNull(data: (u) => u?.id);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.background,
+        border:
+            Border(top: BorderSide(color: colors.foreground, width: 1.5)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(width: 40, height: 4, color: colors.foreground),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Request payment',
+            style: typo.lg.copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: colors.foreground,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Select who owes you',
+            style: GoogleFonts.inter(
+                fontSize: 14, color: colors.mutedForeground),
+          ),
+          const SizedBox(height: 24),
+          balancesAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator.adaptive()),
+            ),
+            error: (_, __) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text('Could not load balances',
+                    style:
+                        typo.sm.copyWith(color: colors.mutedForeground)),
+              ),
+            ),
+            data: (balances) {
+              // Only show entries where the other person owes the current user
+              final debtors = balances.where((b) {
+                if (currentUserId == b.userA) return b.netAmount < 0;
+                if (currentUserId == b.userB) return b.netAmount > 0;
+                return false;
+              }).toList();
+
+              if (debtors.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Text(
+                      'Nobody owes you right now',
+                      style: GoogleFonts.inter(
+                          fontSize: 14, color: colors.mutedForeground),
+                    ),
+                  ),
+                );
+              }
+
+              final otherIds = debtors
+                  .map((b) =>
+                      currentUserId == b.userA ? b.userB : b.userA)
+                  .toList();
+              ref
+                  .read(profileNameCacheProvider.notifier)
+                  .prefetch(otherIds);
+              final names = ref.watch(profileNameCacheProvider);
+
+              return ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.5,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: debtors.map((b) {
+                      final otherId = currentUserId == b.userA
+                          ? b.userB
+                          : b.userA;
+                      final amount = b.netAmount.abs();
+                      final name = names[otherId] ?? '...';
+                      final initial = name.isNotEmpty
+                          ? name[0].toUpperCase()
+                          : '?';
+
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => PersonDetailScreen(
+                              otherUserId: otherId,
+                              amount: amount,
+                              iOwe: false,
+                            ),
+                          ));
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            border: Border.all(
+                                color: colors.foreground, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: colors.foreground,
+                                  offset: const Offset(3, 3)),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color: colors.foreground, width: 1.5),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  initial,
+                                  style: typo.sm.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.foreground),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: typo.sm.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: colors.foreground),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Owes you ${_fmt.format(amount)}',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          color: colors.mutedForeground),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(FIcons.chevronRight,
+                                  size: 16, color: colors.foreground),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
