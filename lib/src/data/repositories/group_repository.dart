@@ -35,7 +35,6 @@ class GroupRepository {
   }
 
   Stream<List<Group>> watchGroups() {
-    // First emit cached, then stream live
     return _client
         .from('groups')
         .stream(primaryKey: ['id'])
@@ -44,9 +43,7 @@ class GroupRepository {
       final groups = data.map((e) => Group.fromJson(e)).toList();
       _cacheGroups(groups);
       return groups;
-    }).handleError((_) {
-      // On error, return empty — cached data available via getGroups()
-    });
+    }).handleError((_) {});
   }
 
   Future<Group> getGroup(String groupId) async {
@@ -68,6 +65,7 @@ class GroupRepository {
       'group_id': data['id'],
       'user_id': _userId,
       'role': 'creator',
+      'status': 'active',
     });
     return Group.fromJson(data);
   }
@@ -93,12 +91,61 @@ class GroupRepository {
     return (data as List).map((e) => GroupMember.fromJson(e)).toList();
   }
 
-  Future<void> addMember(String groupId, String userId) async {
+  /// Sends a pending invitation to [userId]. Creates a `group_members` row
+  /// with status='pending' and inserts a notification for the invitee.
+  Future<void> inviteMember(
+      String groupId, String userId, String groupName) async {
     await _client.from('group_members').insert({
       'group_id': groupId,
       'user_id': userId,
       'role': 'member',
+      'status': 'pending',
+      'invited_by': _userId,
     });
+    await _client.from('notifications').insert({
+      'user_id': userId,
+      'type': 'group_invitation',
+      'payload': {
+        'group_id': groupId,
+        'group_name': groupName,
+        'invited_by': _userId,
+      },
+    });
+  }
+
+  /// Accepts a pending invitation for the current user.
+  Future<void> acceptInvitation(String groupId) async {
+    await _client
+        .from('group_members')
+        .update({'status': 'active'})
+        .eq('group_id', groupId)
+        .eq('user_id', _userId!);
+  }
+
+  /// Declines (deletes) a pending invitation for the current user.
+  Future<void> declineInvitation(String groupId) async {
+    await _client
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', _userId!);
+  }
+
+  /// Returns all groups where the current user has a pending invitation,
+  /// including the group name via PostgREST FK embedding.
+  Future<List<({GroupMember member, String groupName})>>
+      getPendingInvitations() async {
+    final data = await _client
+        .from('group_members')
+        .select('*, groups(name)')
+        .eq('user_id', _userId!)
+        .eq('status', 'pending');
+    return (data as List).map((e) {
+      final member = GroupMember.fromJson(e);
+      final groupName =
+          (e['groups'] as Map?)?['name'] as String? ?? 'Unknown group';
+      return (member: member, groupName: groupName);
+    }).toList();
   }
 
   Future<void> removeMember(String groupId, String userId) async {
