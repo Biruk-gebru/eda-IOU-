@@ -22,17 +22,27 @@ class GroupRepository {
     if (isOffline) return _getCachedGroups();
 
     try {
-      // Only return groups where the current user has an active membership.
-      // Pending invitees must accept before the group appears in their list.
-      final data = await _client
+      // Step 1 — get IDs of groups where the current user is an active member.
+      // Using two explicit queries avoids PostgREST FK-embedding which can
+      // silently return null when the groups SELECT RLS policy hasn't caught up.
+      final memberData = await _client
           .from('group_members')
-          .select('groups(*)')
+          .select('group_id')
           .eq('user_id', _userId!)
-          .eq('status', 'active')
-          .order('created_at', ascending: false);
-      final groups = (data as List)
-          .map((e) => Group.fromJson(e['groups'] as Map<String, dynamic>))
+          .eq('status', 'active');
+      final activeIds = (memberData as List)
+          .map((e) => e['group_id'] as String)
           .toList();
+
+      if (activeIds.isEmpty) return [];
+
+      // Step 2 — fetch those groups directly.
+      final data = await _client
+          .from('groups')
+          .select()
+          .inFilter('id', activeIds)
+          .order('created_at', ascending: false);
+      final groups = (data as List).map((e) => Group.fromJson(e)).toList();
       await _cacheGroups(groups);
       return groups;
     } catch (e) {
