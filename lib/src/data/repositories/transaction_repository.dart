@@ -128,6 +128,15 @@ class TransactionRepository {
     return result as Map<String, dynamic>;
   }
 
+  Future<void> deleteTransaction(String transactionId) async {
+    await _client.from('transaction_participants')
+        .delete()
+        .eq('transaction_id', transactionId);
+    await _client.from('transactions')
+        .delete()
+        .eq('id', transactionId);
+  }
+
   Future<List<Transaction>> _getLocalTransactions() async {
     final box = await Hive.openBox<String>(_boxName);
     final List<Transaction> transactions = [];

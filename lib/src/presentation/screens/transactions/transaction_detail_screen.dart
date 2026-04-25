@@ -428,22 +428,14 @@ class _TransactionDetailScreenState
             onPress: () async {
               Navigator.of(ctx).pop();
               try {
-                final client = ref.read(supabaseClientProvider);
-                // Cancel first if pending
+                final repo = ref.read(transactionRepositoryProvider);
                 if (isPending) {
-                  await client.from('transactions').update({
-                    'status': 'cancelled',
-                  }).eq('id', widget.transactionId);
+                  await ref.read(supabaseClientProvider)
+                      .from('transactions')
+                      .update({'status': 'cancelled'})
+                      .eq('id', widget.transactionId);
                 }
-                // Delete participants then transaction
-                await client
-                    .from('transaction_participants')
-                    .delete()
-                    .eq('transaction_id', widget.transactionId);
-                await client
-                    .from('transactions')
-                    .delete()
-                    .eq('id', widget.transactionId);
+                await repo.deleteTransaction(widget.transactionId);
 
                 ref.invalidate(transactionListProvider);
                 ref.invalidate(balancesProvider);
