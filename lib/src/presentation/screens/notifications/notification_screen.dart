@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../domain/entities/notification.dart';
 import '../../providers/notification_providers.dart';
@@ -15,147 +16,276 @@ class NotificationScreen extends ConsumerWidget {
     final notificationsAsync = ref.watch(notificationsProvider);
     final unread = ref.watch(unreadCountProvider);
 
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('Notifications'),
-        prefixes: [
-          FHeaderAction.back(
-            onPress: () => Navigator.of(context).pop(),
-          ),
-        ],
-        suffixes: [
-          if (unread > 0)
-            FHeaderAction(
-              icon: const Icon(FIcons.check),
-              onPress: () async {
-                final repo = ref.read(notificationRepositoryProvider);
-                await repo.markAllAsRead();
-              },
-            ),
-        ],
-      ),
-      child: notificationsAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'Error loading notifications: $e',
-              style: typo.sm.copyWith(color: colors.destructive),
-            ),
-          ),
-        ),
-        data: (notifications) {
-          if (notifications.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.notifications_none,
-                      size: 48,
-                      color: colors.mutedForeground,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No notifications yet',
-                      style:
-                          typo.sm.copyWith(color: colors.mutedForeground),
-                    ),
-                  ],
+    return Scaffold(
+      backgroundColor: colors.background, // Paper background
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ────────────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: colors.foreground, width: 1.5),
                 ),
               ),
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            children: [
-              if (unread > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      FBadge(
-                        child: Text('$unread unread'),
-                      ),
-                      FButton(
-                        variant: FButtonVariant.outline,
-                        onPress: () async {
-                          final repo =
-                              ref.read(notificationRepositoryProvider);
-                          await repo.markAllAsRead();
-                        },
-                        child: const Text('Mark all as read'),
-                      ),
-                    ],
-                  ),
-                ),
-              FTileGroup(
+              child: Row(
                 children: [
-                  for (final n in notifications)
-                    _notificationTile(context, ref, n, colors, typo),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '←',
+                        style: typo.lg.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Notifications',
+                      style: typo.lg.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ),
+                  if (unread > 0)
+                    GestureDetector(
+                      onTap: () async {
+                        final repo = ref.read(notificationRepositoryProvider);
+                        await repo.markAllAsRead();
+                      },
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(FIcons.check, size: 16, color: colors.foreground),
+                      ),
+                    ),
                 ],
               ),
-            ],
-          );
-        },
+            ),
+
+            // ── Body ─────────────────────────────────────────────────────────
+            Expanded(
+              child: notificationsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Error loading notifications: $e',
+                      style: typo.sm.copyWith(color: colors.destructive),
+                    ),
+                  ),
+                ),
+                data: (notifications) {
+                  if (notifications.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: colors.foreground, width: 1.5),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(FIcons.bell, size: 30, color: colors.foreground),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'No notifications yet',
+                              style: typo.lg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+                    children: [
+                      if (unread > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: colors.primary,
+                                  border: Border.all(color: colors.foreground, width: 1.5),
+                                ),
+                                child: Text(
+                                  '$unread unread',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.foreground,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () async {
+                                  final repo = ref.read(notificationRepositoryProvider);
+                                  await repo.markAllAsRead();
+                                },
+                                child: Text(
+                                  'Mark all as read',
+                                  style: typo.sm.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                        ),
+                        child: Column(
+                          children: [
+                            for (int i = 0; i < notifications.length; i++)
+                              _notificationTile(context, ref, notifications[i], colors, typo, i == 0),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  FTile _notificationTile(
+  Widget _notificationTile(
     BuildContext context,
     WidgetRef ref,
     AppNotification notification,
     FColors colors,
     FTypography typo,
+    bool isFirst,
   ) {
     final summary = _buildSummary(notification);
     final timeAgo = _formatTimeAgo(notification.createdAt);
 
-    return FTile(
-      title: Text(
-        _typeLabel(notification.type),
-        style: typo.sm.copyWith(
-          fontWeight: notification.read ? FontWeight.normal : FontWeight.w600,
-          color: colors.foreground,
-        ),
-      ),
-      subtitle: Text(
-        summary,
-        style: typo.xs.copyWith(color: colors.mutedForeground),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      prefix: Icon(
-        _typeIcon(notification.type),
-        color: notification.read ? colors.mutedForeground : colors.primary,
-      ),
-      details: Text(
-        timeAgo,
-        style: typo.xs.copyWith(color: colors.mutedForeground),
-      ),
-      suffix: notification.read
-          ? null
-          : Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: colors.primary,
-                shape: BoxShape.circle,
-              ),
-            ),
-      onPress: () async {
+    return GestureDetector(
+      onTap: () async {
         if (!notification.read) {
           final repo = ref.read(notificationRepositoryProvider);
           await repo.markAsRead(notification.id);
         }
       },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: notification.read ? Colors.transparent : colors.primary.withValues(alpha: 0.1),
+          border: isFirst ? null : Border(top: BorderSide(color: colors.foreground, width: 1.0)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                border: Border.all(color: colors.foreground, width: 1.5),
+                color: notification.read ? colors.card : colors.primary,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                _typeIcon(notification.type),
+                size: 20,
+                color: notification.read ? colors.foreground : colors.background,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _typeLabel(notification.type),
+                          style: typo.sm.copyWith(
+                            fontWeight: notification.read ? FontWeight.w500 : FontWeight.w700,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        timeAgo,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          color: colors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    summary,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: colors.mutedForeground,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (!notification.read) ...[
+              const SizedBox(width: 12),
+              Container(
+                width: 10,
+                height: 10,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -179,17 +309,17 @@ class NotificationScreen extends ConsumerWidget {
   IconData _typeIcon(String type) {
     switch (type) {
       case 'payment_request':
-        return Icons.payment;
+        return Icons.request_quote_outlined;
       case 'payment_confirmed':
         return Icons.check_circle_outline;
       case 'payment_rejected':
         return Icons.cancel_outlined;
       case 'transaction_added':
-        return Icons.receipt_long;
+        return Icons.receipt_outlined;
       case 'group_invite':
-        return Icons.group_add;
+        return Icons.person_add_outlined;
       default:
-        return Icons.notifications;
+        return Icons.notifications_none;
     }
   }
 
