@@ -19,3 +19,12 @@ final groupPaymentRequestsProvider =
     FutureProvider.family<List<PaymentRequest>, String>((ref, groupId) async {
   return ref.watch(paymentRepositoryProvider).getGroupPaymentRequests(groupId);
 });
+
+final pendingRequestsBetweenProvider =
+    FutureProvider.family<List<PaymentRequest>, String>((ref, otherUserId) async {
+  return ref.watch(paymentRepositoryProvider).getRequestsBetween(otherUserId);
+});
+
+final pendingApprovalsProvider = FutureProvider<List<PaymentRequest>>((ref) async {
+  return ref.watch(paymentRepositoryProvider).getPendingApprovals();
+});
