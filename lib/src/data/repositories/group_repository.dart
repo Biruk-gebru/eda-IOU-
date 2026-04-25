@@ -123,7 +123,10 @@ class GroupRepository {
   Future<void> acceptInvitation(String groupId) async {
     await _client
         .from('group_members')
-        .update({'status': 'active'})
+        .update({
+          'status': 'active',
+          'joined_at': DateTime.now().toIso8601String(),
+        })
         .eq('group_id', groupId)
         .eq('user_id', _userId!);
   }
