@@ -2,6 +2,16 @@
 
 EDA is a mobile app that makes it easy to track who owes whom in your friend group, dorm, or household. Create shared expenses, request payments, and keep everyone's balances up to date — all in Ethiopian Birr.
 
+<p align="center">
+  <a href="https://github.com/Biruk-gebru/eda-IOU-/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Biruk-gebru/eda-IOU-?label=Download%20APK&logo=android&color=3DDC84" alt="Download APK" />
+  </a>
+  <img src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android" alt="Android" />
+  <img src="https://img.shields.io/badge/built%20with-Flutter-02569B?logo=flutter" alt="Flutter" />
+</p>
+
+> **Install:** Download the APK from the badge above → open it on your Android device → allow "Install unknown apps" if prompted.
+
 ---
 
 ## Screenshots
