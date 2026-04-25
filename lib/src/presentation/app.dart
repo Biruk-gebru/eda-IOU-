@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/providers/connectivity_provider.dart';
+import '../core/services/local_notification_service.dart';
 import 'providers/auth_providers.dart';
 import 'providers/theme_provider.dart';
 import 'screens/auth/onboarding_screen.dart';
@@ -23,6 +24,7 @@ class MyApp extends ConsumerWidget {
     return MaterialApp(
       title: 'Eda',
       debugShowCheckedModeBanner: false,
+      navigatorKey: LocalNotificationService.navigatorKey,
       theme: ThemeData.light(useMaterial3: true),
       darkTheme: ThemeData.dark(useMaterial3: true),
       themeMode: switch (mode) {
