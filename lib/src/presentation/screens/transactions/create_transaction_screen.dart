@@ -255,8 +255,10 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
               ),
             )
-          : Text('Equal split',
-              style: typo.xs.copyWith(color: colors.mutedForeground)),
+          : Text(
+              _equalSplitPreview(),
+              style: typo.xs.copyWith(color: colors.mutedForeground),
+            ),
     );
   }
 
@@ -283,6 +285,14 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
           letterSpacing: 0.8,
         ),
       );
+
+  String _equalSplitPreview() {
+    final total = double.tryParse(_amountController.text.trim());
+    final n = _participants.where((p) => p.included).length;
+    if (total == null || total <= 0 || n < 2) return 'Equal split';
+    final perPerson = (total / n * 100).round() / 100;
+    return 'ETB ${perPerson.toStringAsFixed(2)} each (÷$n)';
+  }
 
   Future<void> _loadGroupMembers(String groupId) async {
     try {
@@ -360,10 +370,20 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
         maps.add({'user_id': p.userId, 'amount_due': p.customAmount!});
       }
     } else {
-      // Equal split among non-payer participants
-      final splitAmount = totalAmount / others.length;
-      for (final p in others) {
-        maps.add({'user_id': p.userId, 'amount_due': splitAmount});
+      // Equal split: divide by ALL included participants (payer covers their own share).
+      // The payer's implicit share is deducted before distributing the remainder to the
+      // last non-payer, so floating-point cents always sum to exactly totalAmount.
+      final allIncluded = _participants.where((p) => p.included).toList();
+      final n = allIncluded.length;
+      final perPerson = (totalAmount / n * 100).round() / 100;
+      double assigned = 0;
+      for (int i = 0; i < others.length; i++) {
+        final isLast = i == others.length - 1;
+        final amount = isLast
+            ? double.parse((totalAmount - perPerson - assigned).toStringAsFixed(2))
+            : perPerson;
+        maps.add({'user_id': others[i].userId, 'amount_due': amount});
+        assigned += perPerson;
       }
     }
 
@@ -386,6 +406,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
             title: const Text('Transaction sent'),
             body: Text(
               '$description — ETB ${totalAmount.toStringAsFixed(2)}\n'
+              'Split ${_participants.where((p) => p.included).length} ways. '
               'Waiting for ${others.length} participant${others.length > 1 ? "s" : ""} to approve.',
             ),
             actions: [
