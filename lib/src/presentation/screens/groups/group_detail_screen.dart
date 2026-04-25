@@ -505,6 +505,7 @@ class _MembersTab extends ConsumerWidget {
                 members: members,
                 groupId: groupId,
                 currentUserId: currentUserId,
+                isCreator: isCreator,
               ),
             ),
             if (isCreator)
@@ -531,7 +532,7 @@ class _MembersTab extends ConsumerWidget {
                         Icon(FIcons.userPlus, size: 20, color: colors.foreground),
                         const SizedBox(width: 10),
                         Text(
-                          'Add member',
+                          'Invite member',
                           style: typo.sm.copyWith(
                             fontWeight: FontWeight.w600,
                             color: colors.foreground,
@@ -563,10 +564,12 @@ class _MembersList extends ConsumerWidget {
     required this.members,
     required this.groupId,
     required this.currentUserId,
+    required this.isCreator,
   });
   final List<dynamic> members;
   final String groupId;
   final String? currentUserId;
+  final bool isCreator;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -632,17 +635,51 @@ class _MembersList extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      role,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: colors.mutedForeground,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          role,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: colors.mutedForeground,
+                          ),
+                        ),
+                        if (member.status == 'pending') ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                  color: colors.mutedForeground, width: 1),
+                            ),
+                            child: Text(
+                              'PENDING',
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: colors.mutedForeground,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
-              if (member.joinedAt != null)
+              if (isCreator && member.role != 'creator')
+                GestureDetector(
+                  onTap: () => _confirmRemove(context, ref, member, name,
+                      colors, typo),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Icon(FIcons.trash2,
+                        size: 18, color: colors.mutedForeground),
+                  ),
+                )
+              else if (member.joinedAt != null)
                 Text(
                   _formatJoinDate(member.joinedAt!),
                   style: GoogleFonts.inter(
@@ -655,6 +692,48 @@ class _MembersList extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _confirmRemove(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic member,
+    String name,
+    FColors colors,
+    FTypography typo,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.background,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
+          side: BorderSide(color: colors.foreground, width: 1.5),
+        ),
+        title: Text('Remove member',
+            style: typo.lg
+                .copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+        content: Text('Remove $name from this group?',
+            style: GoogleFonts.inter(color: colors.mutedForeground)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel',
+                style: typo.sm.copyWith(color: colors.mutedForeground)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Remove',
+                style: typo.sm.copyWith(
+                    fontWeight: FontWeight.w600, color: colors.destructive)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(groupRepositoryProvider).removeMember(groupId, member.userId as String);
+      ref.invalidate(groupMembersProvider(groupId));
+    }
   }
 
   String _formatJoinDate(DateTime date) {
@@ -727,17 +806,19 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
     }
   }
 
-  Future<void> _addMember(String userId, String name) async {
+  Future<void> _inviteMember(String userId, String name) async {
     setState(() => _adding = true);
     try {
+      final groupName =
+          ref.read(groupDetailProvider(widget.groupId)).valueOrNull?.name ?? '';
       await ref
           .read(groupRepositoryProvider)
-          .addMember(widget.groupId, userId);
+          .inviteMember(widget.groupId, userId, groupName);
       ref.invalidate(groupMembersProvider(widget.groupId));
 
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$name added')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Invitation sent to $name')));
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -775,7 +856,7 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Add member',
+            'Invite member',
             style: typo.lg.copyWith(
               fontSize: 22,
               fontWeight: FontWeight.w600,
@@ -784,7 +865,7 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Search by name to add someone to this group',
+            "They'll receive an invitation to accept or decline",
             style: GoogleFonts.inter(
               fontSize: 14,
               color: colors.mutedForeground,
@@ -921,7 +1002,7 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: _adding ? null : () => _addMember(id, name),
+                        onTap: _adding ? null : () => _inviteMember(id, name),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
@@ -932,7 +1013,7 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
                             children: [
                               Icon(FIcons.userPlus, size: 14, color: colors.foreground),
                               const SizedBox(width: 6),
-                              Text('Add', style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+                              Text('Invite', style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
                             ],
                           ),
                         ),
