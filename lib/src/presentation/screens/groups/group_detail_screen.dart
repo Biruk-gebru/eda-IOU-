@@ -31,6 +31,13 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
 
+    final currentUserId =
+        ref.watch(authSessionProvider).valueOrNull?.user.id;
+    final isCreator = ref
+            .watch(groupDetailProvider(widget.groupId))
+            .whenOrNull(data: (g) => g.creatorId == currentUserId) ??
+        false;
+
     return Scaffold(
       backgroundColor: colors.background, // Paper
       body: SafeArea(
@@ -68,19 +75,20 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _confirmDelete(context, ref),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: colors.foreground, width: 1.5),
-                        color: colors.destructive,
+                  if (isCreator)
+                    GestureDetector(
+                      onTap: () => _confirmDelete(context, ref),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          color: colors.destructive,
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(FIcons.trash2, size: 20, color: colors.foreground),
                       ),
-                      alignment: Alignment.center,
-                      child: Icon(FIcons.trash2, size: 20, color: colors.foreground),
                     ),
-                  ),
                 ],
               ),
             ),

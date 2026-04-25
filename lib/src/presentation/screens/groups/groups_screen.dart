@@ -169,6 +169,8 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                                       ref.invalidate(
                                           pendingInvitationsProvider);
                                       ref.invalidate(groupListProvider);
+                                      ref.invalidate(groupMembersProvider(
+                                          inv.member.groupId));
                                     },
                                     onDecline: () async {
                                       await ref
