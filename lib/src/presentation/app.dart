@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../core/providers/connectivity_provider.dart';
 import 'providers/auth_providers.dart';
@@ -46,6 +47,7 @@ class AuthGate extends ConsumerWidget {
     final sessionAsync = ref.watch(authSessionProvider);
     final connectivityAsync = ref.watch(connectivityProvider);
     final colors = context.theme.colors;
+    final typo = context.theme.typography;
 
     return sessionAsync.when(
       loading: () => Scaffold(
@@ -59,23 +61,74 @@ class AuthGate extends ConsumerWidget {
             false;
         if (isOffline) return const MainShell();
 
-        return FScaffold(
-          child: Center(
+        return Scaffold(
+          backgroundColor: colors.background,
+          body: Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FAlert(
-                    variant: FAlertVariant.destructive,
-                    title: const Text('Session Error'),
-                    subtitle: Text(error.toString()),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colors.destructive,
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.foreground,
+                          offset: const Offset(3, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(FIcons.circleAlert, color: colors.foreground, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Session Error',
+                                style: typo.sm.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                error.toString(),
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: colors.foreground,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 24),
-                  FButton(
-                    variant: FButtonVariant.outline,
-                    onPress: () => ref.refresh(authSessionProvider),
-                    child: const Text('Retry'),
+                  const SizedBox(height: 32),
+                  GestureDetector(
+                    onTap: () => ref.refresh(authSessionProvider),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      child: Text(
+                        'Retry',
+                        style: typo.sm.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
