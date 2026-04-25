@@ -26,3 +26,8 @@ final groupMembersProvider =
   final repository = ref.watch(groupRepositoryProvider);
   return repository.getMembers(groupId);
 });
+
+final pendingInvitationsProvider =
+    FutureProvider<List<({GroupMember member, String groupName})>>((ref) async {
+  return ref.watch(groupRepositoryProvider).getPendingInvitations();
+});
