@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/services/local_notification_service.dart';
 import '../../controllers/auth_controller.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_providers.dart';
@@ -19,6 +20,14 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotifications = true;
   bool _emailDigests = false;
+
+  @override
+  void initState() {
+    super.initState();
+    LocalNotificationService.isEnabled().then((v) {
+      if (mounted) setState(() => _pushNotifications = v);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +170,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     'Push notifications',
                     'Approvals, payments, reminders',
                     _pushNotifications,
-                    (v) => setState(() => _pushNotifications = v),
+                    (v) async {
+                      setState(() => _pushNotifications = v);
+                      await LocalNotificationService.setEnabled(v);
+                      if (v) await LocalNotificationService.requestPermission();
+                    },
                     colors,
                     typo,
                   ),
@@ -503,7 +516,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   try {
                     await ref.read(authControllerProvider).signOut();
                   } on AuthControllerException catch (e) {
-                    if (mounted) {
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context)
                           .showSnackBar(SnackBar(content: Text(e.message)));
                     }
@@ -605,7 +618,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   try {
                     await ref.read(authControllerProvider).deleteAccount();
                   } on AuthControllerException catch (e) {
-                    if (mounted) {
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context)
                           .showSnackBar(SnackBar(content: Text(e.message)));
                     }
