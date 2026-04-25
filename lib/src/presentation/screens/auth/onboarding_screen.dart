@@ -131,10 +131,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 90,
+                      height: 90,
                       decoration: BoxDecoration(
-                        color: Colors.transparent,
+                        color: colors.primary.withValues(alpha: 0.1),
                         border: Border.all(color: colors.foreground, width: 1.5),
                         boxShadow: [
                           BoxShadow(
@@ -143,7 +143,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                         ],
                       ),
-                      child: Icon(FIcons.user, size: 34, color: colors.foreground),
+                      padding: const EdgeInsets.all(12),
+                      child: Image.asset(
+                        'assets/logo.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                     const SizedBox(height: 32),
                     Text(
