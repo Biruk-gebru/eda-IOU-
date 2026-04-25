@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/auth_providers.dart';
 import '../../providers/group_providers.dart';
@@ -8,7 +9,7 @@ import '../../providers/payment_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
 
-class GroupDetailScreen extends ConsumerWidget {
+class GroupDetailScreen extends ConsumerStatefulWidget {
   const GroupDetailScreen({
     super.key,
     required this.groupId,
@@ -19,76 +20,227 @@ class GroupDetailScreen extends ConsumerWidget {
   final String groupName;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return FScaffold(
-      header: FHeader.nested(
-        title: Text(groupName),
-        prefixes: [
-          FHeaderAction.back(
-            onPress: () => Navigator.of(context).pop(),
-          ),
-        ],
-        suffixes: [
-          FHeaderAction(
-            icon: const Icon(FIcons.trash2),
-            onPress: () => _confirmDelete(context, ref),
-          ),
-        ],
+  ConsumerState<GroupDetailScreen> createState() => _GroupDetailScreenState();
+}
+
+class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
+  int _tabIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
+    return Scaffold(
+      backgroundColor: colors.background, // Paper
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: colors.foreground, width: 1.5)),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(FIcons.arrowLeft, size: 20, color: colors.foreground),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      widget.groupName,
+                      style: typo.xl2.copyWith(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                        letterSpacing: -0.24,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _confirmDelete(context, ref),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                        color: colors.destructive,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(FIcons.trash2, size: 20, color: colors.foreground),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Tabs
+            Container(
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: colors.foreground, width: 1.5)),
+                color: colors.card,
+              ),
+              child: Row(
+                children: [
+                  _buildTab(0, 'Ledger', colors, typo),
+                  Container(width: 1.5, height: 48, color: colors.foreground),
+                  _buildTab(1, 'Members', colors, typo),
+                  Container(width: 1.5, height: 48, color: colors.foreground),
+                  _buildTab(2, 'Requests', colors, typo),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: IndexedStack(
+                index: _tabIndex,
+                children: [
+                  _LedgerTab(groupId: widget.groupId),
+                  _MembersTab(groupId: widget.groupId),
+                  _RequestsTab(groupId: widget.groupId),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      childPad: false,
-      child: FTabs(
-        expands: true,
-        children: [
-          FTabEntry(
-            label: const Text('Ledger'),
-            child: _LedgerTab(groupId: groupId),
+    );
+  }
+
+  Widget _buildTab(int index, String label, FColors colors, FTypography typo) {
+    final isSelected = _tabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tabIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 48,
+          color: isSelected ? colors.primary : Colors.transparent,
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: colors.foreground,
+            ),
           ),
-          FTabEntry(
-            label: const Text('Members'),
-            child: _MembersTab(groupId: groupId),
-          ),
-          FTabEntry(
-            label: const Text('Requests'),
-            child: _RequestsTab(groupId: groupId),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
-    await showFDialog(
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
+    await showDialog(
       context: context,
-      builder: (ctx, style, animation) => FDialog(
-        animation: animation,
-        direction: Axis.horizontal,
-        title: const Text('Delete group'),
-        body: const Text(
-            'This will permanently delete the group and remove all members. This cannot be undone.'),
-        actions: [
-          FButton(
-            variant: FButtonVariant.destructive,
-            onPress: () async {
-              Navigator.of(ctx).pop();
-              try {
-                await ref.read(groupRepositoryProvider).deleteGroup(groupId);
-                ref.invalidate(groupListProvider);
-                if (context.mounted) Navigator.of(context).pop();
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              }
-            },
-            child: const Text('Delete'),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(22),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: colors.background,
+            border: Border.all(color: colors.foreground, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: colors.foreground,
+                offset: const Offset(6, 6),
+              ),
+            ],
           ),
-          FButton(
-            variant: FButtonVariant.outline,
-            onPress: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Delete group',
+                style: typo.lg.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This will permanently delete the group and remove all members. This cannot be undone.',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 28),
+              GestureDetector(
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  try {
+                    await ref.read(groupRepositoryProvider).deleteGroup(widget.groupId);
+                    ref.invalidate(groupListProvider);
+                    if (context.mounted) Navigator.of(context).pop();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: colors.destructive,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(3, 3),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Delete permanently',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Cancel',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -101,6 +253,8 @@ class _LedgerTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
     final transactionsAsync = ref.watch(transactionListProvider);
 
     return transactionsAsync.when(
@@ -116,21 +270,32 @@ class _LedgerTab extends ConsumerWidget {
               Icon(
                 FIcons.triangleAlert,
                 size: 40,
-                color: context.theme.colors.mutedForeground,
+                color: colors.mutedForeground,
               ),
               const SizedBox(height: 12),
               Text(
                 'Could not load transactions',
-                style: context.theme.typography.sm.copyWith(
-                  color: context.theme.colors.mutedForeground,
+                style: typo.sm.copyWith(
+                  color: colors.mutedForeground,
                 ),
               ),
-              const SizedBox(height: 12),
-              FButton(
-                variant: FButtonVariant.outline,
-                onPress: () => ref.invalidate(transactionListProvider),
-                prefix: const Icon(FIcons.refreshCw),
-                child: const Text('Retry'),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => ref.invalidate(transactionListProvider),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FIcons.refreshCw, size: 16, color: colors.foreground),
+                      const SizedBox(width: 8),
+                      Text('Retry', style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -149,20 +314,22 @@ class _LedgerTab extends ConsumerWidget {
                 Icon(
                   FIcons.receipt,
                   size: 48,
-                  color: context.theme.colors.mutedForeground,
+                  color: colors.mutedForeground,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   'No transactions yet',
-                  style: context.theme.typography.lg.copyWith(
-                    color: context.theme.colors.mutedForeground,
+                  style: typo.lg.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   'Expenses added to this group will appear here',
-                  style: context.theme.typography.sm.copyWith(
-                    color: context.theme.colors.mutedForeground,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: colors.mutedForeground,
                   ),
                 ),
               ],
@@ -170,14 +337,24 @@ class _LedgerTab extends ConsumerWidget {
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 40),
           itemCount: transactions.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final txn = transactions[index];
 
-            return FCard.raw(
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(3, 3),
+                  ),
+                ],
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -189,32 +366,51 @@ class _LedgerTab extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             txn.description ?? 'Untitled expense',
-                            style: context.theme.typography.sm.copyWith(
+                            style: typo.lg.copyWith(
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
+                              color: colors.foreground,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Text(
                           '${txn.currency} ${txn.totalAmount.toStringAsFixed(0)}',
-                          style: context.theme.typography.sm.copyWith(
-                            fontWeight: FontWeight.bold,
+                          style: typo.lg.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: colors.foreground,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    if (txn.createdAt != null)
-                      Text(
-                        _formatDate(txn.createdAt!),
-                        style: context.theme.typography.sm.copyWith(
-                          color: context.theme.colors.mutedForeground,
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (txn.createdAt != null)
+                          Text(
+                            _formatDate(txn.createdAt!),
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: colors.mutedForeground,
+                            ),
+                          ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                          ),
+                          child: Text(
+                            txn.status.toUpperCase(),
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
+                            ),
+                          ),
                         ),
-                      ),
-                    const SizedBox(height: 8),
-                    FBadge(
-                      variant: FBadgeVariant.outline,
-                      child: Text(txn.status),
+                      ],
                     ),
                   ],
                 ),
@@ -251,6 +447,8 @@ class _MembersTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
     final membersAsync = ref.watch(groupMembersProvider(groupId));
     final sessionAsync = ref.watch(authSessionProvider);
     final currentUserId = sessionAsync.valueOrNull?.user.id;
@@ -273,17 +471,27 @@ class _MembersTab extends ConsumerWidget {
             children: [
               Text(
                 'Could not load members',
-                style: context.theme.typography.sm.copyWith(
-                  color: context.theme.colors.mutedForeground,
+                style: typo.sm.copyWith(
+                  color: colors.mutedForeground,
                 ),
               ),
-              const SizedBox(height: 12),
-              FButton(
-                variant: FButtonVariant.outline,
-                onPress: () =>
-                    ref.invalidate(groupMembersProvider(groupId)),
-                prefix: const Icon(FIcons.refreshCw),
-                child: const Text('Retry'),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => ref.invalidate(groupMembersProvider(groupId)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FIcons.refreshCw, size: 16, color: colors.foreground),
+                      const SizedBox(width: 8),
+                      Text('Retry', style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -301,11 +509,37 @@ class _MembersTab extends ConsumerWidget {
             ),
             if (isCreator)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: FButton(
-                  onPress: () => _showInviteSheet(context),
-                  prefix: const Icon(FIcons.userPlus),
-                  child: const Text('Add member'),
+                padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
+                child: GestureDetector(
+                  onTap: () => _showInviteSheet(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    decoration: BoxDecoration(
+                      color: colors.primary,
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.foreground,
+                          offset: const Offset(4, 4),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(FIcons.userPlus, size: 20, color: colors.foreground),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Add member',
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -318,9 +552,7 @@ class _MembersTab extends ConsumerWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => _AddMemberSheet(groupId: groupId),
     );
   }
@@ -346,7 +578,7 @@ class _MembersList extends ConsumerWidget {
     final names = ref.watch(profileNameCacheProvider);
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
       itemCount: members.length,
       itemBuilder: (context, index) {
         final member = members[index];
@@ -355,30 +587,71 @@ class _MembersList extends ConsumerWidget {
         final role = member.role == 'creator' ? 'Creator' : 'Member';
         final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
-        return FTile(
-          prefix: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: colors.secondary,
-              shape: BoxShape.circle,
-              border: Border.all(color: colors.border),
-            ),
-            alignment: Alignment.center,
-            child: Text(initial,
-                style: typo.xs.copyWith(
-                    fontWeight: FontWeight.w600, color: colors.foreground)),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colors.card,
+            border: Border.all(color: colors.foreground, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: colors.foreground,
+                offset: const Offset(3, 3),
+              ),
+            ],
           ),
-          title: Text(name,
-              style: typo.sm.copyWith(
-                  fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.w500,
-                  color: colors.foreground)),
-          subtitle: Text(role,
-              style: typo.xs.copyWith(color: colors.mutedForeground)),
-          suffix: member.joinedAt != null
-              ? Text(_formatJoinDate(member.joinedAt!),
-                  style: typo.xs.copyWith(color: colors.mutedForeground))
-              : null,
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  initial,
+                  style: typo.lg.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: typo.lg.copyWith(
+                        fontSize: 16,
+                        fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.w500,
+                        color: colors.foreground,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      role,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: colors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (member.joinedAt != null)
+                Text(
+                  _formatJoinDate(member.joinedAt!),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: colors.mutedForeground,
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -482,7 +755,11 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
 
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.background,
+        border: Border(top: BorderSide(color: colors.foreground, width: 1.5)),
+      ),
       padding: EdgeInsets.fromLTRB(
           24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(
@@ -493,59 +770,97 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
             child: Container(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(
-                color: colors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              color: colors.foreground,
             ),
           ),
-          const SizedBox(height: 16),
-          Text('Add member',
-              style: typo.lg
-                  .copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
-          const SizedBox(height: 4),
-          Text('Search by name to add someone to this group',
-              style: typo.sm.copyWith(color: colors.mutedForeground)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
+          Text(
+            'Add member',
+            style: typo.lg.copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: colors.foreground,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Search by name to add someone to this group',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: colors.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: 24),
 
           // Search field
           Row(
             children: [
               Expanded(
-                child: FTextField(
-                  control: FTextFieldControl.managed(
-                      controller: _searchController),
-                  hint: 'Search by name...',
-                  prefixBuilder: (ctx, style, variants) =>
-                      FTextField.prefixIconBuilder(
-                          ctx, style, variants, const Icon(FIcons.search)),
+                child: TextField(
+                  controller: _searchController,
+                  style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name...',
+                    hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+                    prefixIcon: Icon(FIcons.search, size: 18, color: colors.mutedForeground),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.zero,
+                      borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.zero,
+                      borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.zero,
+                      borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    isDense: true,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              FButton(
-                onPress: _searching ? null : _search,
-                child: _searching
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator.adaptive(
-                            strokeWidth: 2))
-                    : const Text('Search'),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _searching ? null : _search,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(3, 3),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: _searching
+                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2))
+                      : Text(
+                          'Search',
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
 
           // Results
           if (_results.isEmpty && !_searching)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
                   _searchController.text.length >= 2
                       ? 'No users found'
                       : 'Type at least 2 characters',
-                  style: typo.xs.copyWith(color: colors.mutedForeground),
+                  style: GoogleFonts.inter(fontSize: 14, color: colors.mutedForeground),
                 ),
               ),
             )
@@ -556,37 +871,73 @@ class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
                 final user = _results[i];
                 final name = user['display_name'] as String? ?? 'Unknown';
                 final id = user['id'] as String;
-                final initial =
-                    name.isNotEmpty ? name[0].toUpperCase() : '?';
+                final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: FTile(
-                    prefix: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: colors.secondary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: colors.border),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          initial,
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(initial,
-                          style: typo.xs.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.foreground)),
-                    ),
-                    title: Text(name),
-                    subtitle: Text(id.substring(0, id.length.clamp(0, 8)),
-                        style: typo.xs
-                            .copyWith(color: colors.mutedForeground)),
-                    suffix: FButton(
-                      onPress: _adding
-                          ? null
-                          : () => _addMember(id, name),
-                      prefix: const Icon(FIcons.userPlus),
-                      child: const Text('Add'),
-                    ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: typo.sm.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                            Text(
+                              id.substring(0, id.length.clamp(0, 8)),
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: colors.mutedForeground,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _adding ? null : () => _addMember(id, name),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(FIcons.userPlus, size: 14, color: colors.foreground),
+                              const SizedBox(width: 6),
+                              Text('Add', style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -623,29 +974,48 @@ class _RequestsTab extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(FIcons.inbox, size: 48, color: colors.mutedForeground),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text('No requests yet',
-                    style: typo.lg.copyWith(color: colors.mutedForeground)),
-                const SizedBox(height: 4),
+                    style: typo.lg.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+                const SizedBox(height: 8),
                 Text('Payment requests for this group will appear here',
-                    style: typo.sm.copyWith(color: colors.mutedForeground),
+                    style: GoogleFonts.inter(fontSize: 14, color: colors.mutedForeground),
                     textAlign: TextAlign.center),
               ],
             ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 40),
           itemCount: requests.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, i) {
             final req = requests[i];
             final isReceiver = req.receiverId == currentUserId;
             final isPending = req.status == 'pending';
 
-            return FCard.raw(
+            Color badgeColor;
+            if (req.status == 'confirmed') {
+              badgeColor = colors.primary;
+            } else if (req.status == 'rejected') {
+              badgeColor = colors.destructive;
+            } else {
+              badgeColor = Colors.transparent;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(3, 3),
+                  ),
+                ],
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -654,51 +1024,88 @@ class _RequestsTab extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'ETB ${req.amount.toStringAsFixed(2)}',
-                            style: typo.sm.copyWith(
-                                fontWeight: FontWeight.w600,
+                            style: typo.lg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
                                 color: colors.foreground),
                           ),
                         ),
-                        FBadge(
-                          variant: req.status == 'confirmed'
-                              ? FBadgeVariant.primary
-                              : req.status == 'rejected'
-                                  ? FBadgeVariant.destructive
-                                  : FBadgeVariant.outline,
-                          child: Text(req.status),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: badgeColor,
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                          ),
+                          child: Text(
+                            req.status.toUpperCase(),
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    if (req.note != null) ...[
-                      const SizedBox(height: 4),
-                      Text(req.note!,
-                          style: typo.xs.copyWith(
-                              color: colors.mutedForeground)),
+                    if (req.note != null && req.note!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        req.note!,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: colors.mutedForeground,
+                        ),
+                      ),
                     ],
                     if (isReceiver && isPending) ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
-                            child: FButton(
-                              variant: FButtonVariant.destructive,
-                              onPress: () async {
+                            child: GestureDetector(
+                              onTap: () async {
                                 await repo.rejectPayment(req.id);
-                                ref.invalidate(
-                                    groupPaymentRequestsProvider(groupId));
+                                ref.invalidate(groupPaymentRequestsProvider(groupId));
                               },
-                              child: const Text('Reject'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: colors.destructive,
+                                  border: Border.all(color: colors.foreground, width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colors.foreground,
+                                      offset: const Offset(2, 2),
+                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('Reject', style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(
-                            child: FButton(
-                              onPress: () async {
+                            child: GestureDetector(
+                              onTap: () async {
                                 await repo.confirmPayment(req.id);
-                                ref.invalidate(
-                                    groupPaymentRequestsProvider(groupId));
+                                ref.invalidate(groupPaymentRequestsProvider(groupId));
                               },
-                              child: const Text('Confirm'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: colors.primary,
+                                  border: Border.all(color: colors.foreground, width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colors.foreground,
+                                      offset: const Offset(2, 2),
+                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('Confirm', style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+                              ),
                             ),
                           ),
                         ],
