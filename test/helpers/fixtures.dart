@@ -1,4 +1,5 @@
 import 'package:eda/src/domain/entities/group.dart';
+import 'package:eda/src/domain/entities/group_member.dart';
 import 'package:eda/src/domain/entities/net_balance.dart';
 import 'package:eda/src/domain/entities/notification.dart';
 import 'package:eda/src/domain/entities/transaction.dart';
@@ -123,6 +124,44 @@ Group makeGroup({
       name: name,
       creatorId: creatorId,
       createdAt: kCreatedAt,
+    );
+
+// ---------- GroupMember ----------
+
+Map<String, dynamic> groupMemberJson({
+  String id = 'mem-1',
+  String groupId = 'group-1',
+  String userId = kUserB,
+  String role = 'member',
+  String status = 'active',
+  String? invitedBy,
+  String? joinedAt,
+}) =>
+    {
+      'id': id,
+      'group_id': groupId,
+      'user_id': userId,
+      'role': role,
+      'status': status,
+      'invited_by': invitedBy,
+      'joined_at': joinedAt,
+    };
+
+GroupMember makeGroupMember({
+  String id = 'mem-1',
+  String groupId = 'group-1',
+  String userId = kUserB,
+  String role = 'member',
+  String status = 'active',
+  String? invitedBy,
+}) =>
+    GroupMember(
+      id: id,
+      groupId: groupId,
+      userId: userId,
+      role: role,
+      status: status,
+      invitedBy: invitedBy,
     );
 
 // ---------- NetBalance ----------
