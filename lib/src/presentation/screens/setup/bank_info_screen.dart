@@ -181,98 +181,271 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
+    final canPop = Navigator.of(context).canPop();
 
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('Add Banking Info'),
-        prefixes: [
-          if (Navigator.of(context).canPop())
-            FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
-        ],
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+    return Scaffold(
+      backgroundColor: colors.background, // Paper background
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Add a bank account to receive payments.\nYou can add more later from Settings.',
-              style:
-                  typo.sm.copyWith(color: colors.mutedForeground, height: 1.5),
-            ),
-            const SizedBox(height: 24),
-
-            // Bank selection
-            Text('SELECT BANK',
-                style: typo.xs.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colors.mutedForeground,
-                    letterSpacing: 0.8)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final bank in _banks) _bankChip(bank, colors, typo),
-              ],
-            ),
-
-            if (_selectedBank != null) ...[
-              const SizedBox(height: 24),
-
-              // Account holder name
-              FTextField(
-                control: FTextFieldControl.managed(
-                    controller: _accountNameController),
-                label: const Text('Account holder name'),
-                hint: 'Your full name',
-                enabled: !_isLoading,
-                textCapitalization: TextCapitalization.words,
+            // ── Header ────────────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: colors.foreground, width: 1.5),
+                ),
               ),
-              const SizedBox(height: 16),
-
-              // Bank-specific identifier
-              FTextField(
-                control: FTextFieldControl.managed(
-                    controller: _identifierController),
-                label: Text(_selectedBank!.label),
-                hint: _selectedBank!.hint,
-                description: Text(
-                    '${_selectedBank!.minLen}-${_selectedBank!.maxLen} ${_selectedBank!.digitsOnly ? "digits" : "characters"}'),
-                keyboardType: _selectedBank!.digitsOnly
-                    ? TextInputType.number
-                    : TextInputType.text,
-                inputFormatters: [
-                  if (_selectedBank!.digitsOnly)
-                    FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(_selectedBank!.maxLen),
+              child: Row(
+                children: [
+                  if (canPop) ...[
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '←',
+                          style: typo.lg.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Text(
+                      'Add Banking Info',
+                      style: typo.lg.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ),
                 ],
-                enabled: !_isLoading,
               ),
-            ],
-
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              FAlert(
-                variant: FAlertVariant.destructive,
-                title: Text(_error!),
-              ),
-            ],
-
-            const SizedBox(height: 28),
-            FButton(
-              onPress: _isLoading || _selectedBank == null ? null : _submit,
-              prefix: _isLoading
-                  ? const SizedBox(
-                      width: 18, height: 18, child: FCircularProgress())
-                  : const Icon(FIcons.check),
-              child: const Text('Save'),
             ),
-            const SizedBox(height: 10),
-            FButton(
-              variant: FButtonVariant.ghost,
-              onPress: _isLoading ? null : _skip,
-              child: const Text('Skip for now'),
+
+            // ── Body ─────────────────────────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add a bank account to receive payments.\nYou can add more later from Settings.',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: colors.mutedForeground,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Bank selection
+                    Text(
+                      'SELECT BANK',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.6,
+                        color: colors.mutedForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (final bank in _banks) _bankChip(bank, colors, typo),
+                      ],
+                    ),
+
+                    if (_selectedBank != null) ...[
+                      const SizedBox(height: 32),
+
+                      // Account holder name
+                      Text(
+                        'ACCOUNT HOLDER NAME',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.6,
+                          color: colors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _accountNameController,
+                        enabled: !_isLoading,
+                        textCapitalization: TextCapitalization.words,
+                        style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+                        decoration: InputDecoration(
+                          hintText: 'Your full name',
+                          hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                            borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                            borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                            borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Bank-specific identifier
+                      Text(
+                        _selectedBank!.label.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.6,
+                          color: colors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _identifierController,
+                        enabled: !_isLoading,
+                        keyboardType: _selectedBank!.digitsOnly ? TextInputType.number : TextInputType.text,
+                        inputFormatters: [
+                          if (_selectedBank!.digitsOnly) FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(_selectedBank!.maxLen),
+                        ],
+                        style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+                        decoration: InputDecoration(
+                          hintText: _selectedBank!.hint,
+                          hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                            borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                            borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.zero,
+                            borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${_selectedBank!.minLen}-${_selectedBank!.maxLen} ${_selectedBank!.digitsOnly ? "digits" : "characters"}',
+                        style: GoogleFonts.inter(fontSize: 12, color: colors.mutedForeground),
+                      ),
+                    ],
+
+                    if (_error != null) ...[
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colors.destructive,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.foreground,
+                              offset: const Offset(3, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(FIcons.circleAlert, color: colors.foreground, size: 18),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: typo.sm.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 48),
+
+                    GestureDetector(
+                      onTap: _isLoading || _selectedBank == null ? null : _submit,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.foreground,
+                              offset: const Offset(4, 4),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: _isLoading
+                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: colors.foreground))
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(FIcons.check, size: 20, color: colors.foreground),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Save',
+                                    style: typo.lg.copyWith(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.foreground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: _isLoading ? null : _skip,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Skip for now',
+                          style: typo.lg.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -290,23 +463,23 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
                 _identifierController.clear();
                 _error = null;
               }),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? colors.card : colors.secondary,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected
-                ? colors.foreground.withValues(alpha: 0.3)
-                : colors.border,
-          ),
+          color: selected ? colors.card : Colors.transparent,
+          border: Border.all(color: colors.foreground, width: 1.5),
+          boxShadow: selected ? [
+            BoxShadow(
+              color: colors.foreground,
+              offset: const Offset(2, 2),
+            )
+          ] : null,
         ),
         child: Text(
           bank.name,
           style: typo.sm.copyWith(
-            color: selected ? colors.foreground : colors.mutedForeground,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            color: colors.foreground,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
       ),
