@@ -18,6 +18,7 @@ class _BankDef {
   final int minLen;
   final int maxLen;
   final bool digitsOnly;
+  final String? assetPath;
 
   const _BankDef({
     required this.id,
@@ -27,6 +28,7 @@ class _BankDef {
     required this.minLen,
     required this.maxLen,
     this.digitsOnly = true,
+    this.assetPath,
   });
 
   String? validate(String value) {
@@ -48,14 +50,16 @@ const _banks = [
     hint: '09XXXXXXXX',
     minLen: 10,
     maxLen: 10,
+    assetPath: 'assets/telebirrlogo.png',
   ),
   _BankDef(
     id: 'cbe',
-    name: 'CBE (Commercial Bank of Ethiopia)',
+    name: 'CBE',
     label: 'Account number',
     hint: '1000XXXXXXXXXX',
     minLen: 13,
     maxLen: 16,
+    assetPath: 'assets/cbelogo.png',
   ),
   _BankDef(
     id: 'zemen',
@@ -64,6 +68,7 @@ const _banks = [
     hint: 'Enter account number',
     minLen: 10,
     maxLen: 16,
+    assetPath: 'assets/zemenlogo.png',
   ),
 ];
 
@@ -464,23 +469,49 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
                 _error = null;
               }),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        width: 100,
+        height: 110,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? colors.card : Colors.transparent,
+          color: selected ? colors.primary.withValues(alpha: 0.1) : colors.card,
           border: Border.all(color: colors.foreground, width: 1.5),
-          boxShadow: selected ? [
-            BoxShadow(
-              color: colors.foreground,
-              offset: const Offset(2, 2),
-            )
-          ] : null,
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(4, 4),
+                  )
+                ]
+              : [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(2, 2),
+                  )
+                ],
         ),
-        child: Text(
-          bank.name,
-          style: typo.sm.copyWith(
-            color: colors.foreground,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (bank.assetPath != null) ...[
+              Image.asset(
+                bank.assetPath!,
+                width: 40,
+                height: 40,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 12),
+            ],
+            Text(
+              bank.name,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: typo.sm.copyWith(
+                color: colors.foreground,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
