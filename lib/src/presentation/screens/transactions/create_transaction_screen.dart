@@ -32,10 +32,17 @@ class _CreateTransactionScreenState
   Group? _selectedGroup;
   List<_ParticipantEntry> _participants = [];
 
+  // Personal IOU — recipient search
+  final _personalSearchController = TextEditingController();
+  List<Map<String, dynamic>> _personalSearchResults = [];
+  bool _personalSearching = false;
+  Map<String, dynamic>? _personalRecipient;
+
   @override
   void dispose() {
     _descriptionController.dispose();
     _amountController.dispose();
+    _personalSearchController.dispose();
     super.dispose();
   }
 
@@ -294,6 +301,9 @@ class _CreateTransactionScreenState
                                         _isGroupExpense = false;
                                         _selectedGroup = null;
                                         _participants = [];
+                                        _personalRecipient = null;
+                                        _personalSearchResults = [];
+                                        _personalSearchController.clear();
                                       }),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
@@ -323,6 +333,126 @@ class _CreateTransactionScreenState
                             ),
 
                             const SizedBox(height: 24),
+
+                            if (!_isGroupExpense) ...[
+                              _label('WITH WHOM?', colors),
+                              const SizedBox(height: 8),
+                              if (_personalRecipient != null)
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: colors.card,
+                                    border: Border.all(color: colors.foreground, width: 1.5),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 32, height: 32,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: colors.foreground, width: 1.2),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          (_personalRecipient!['display_name'] as String? ?? '?')[0].toUpperCase(),
+                                          style: typo.lg.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: colors.foreground),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          _personalRecipient!['display_name'] as String? ?? 'User',
+                                          style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => setState(() {
+                                          _personalRecipient = null;
+                                          _participants = [];
+                                        }),
+                                        child: Icon(FIcons.x, size: 18, color: colors.mutedForeground),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else ...[
+                                TextField(
+                                  controller: _personalSearchController,
+                                  style: typo.sm.copyWith(color: colors.foreground, fontSize: 16),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search by name...',
+                                    hintStyle: typo.sm.copyWith(
+                                      fontSize: 16,
+                                      color: colors.mutedForeground.withValues(alpha: 0.5),
+                                    ),
+                                    border: UnderlineInputBorder(
+                                      borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                                    ),
+                                    enabledBorder: UnderlineInputBorder(
+                                      borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                                    ),
+                                    focusedBorder: UnderlineInputBorder(
+                                      borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                                    ),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                    suffixIcon: _personalSearching
+                                        ? Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: SizedBox(
+                                              width: 16, height: 16,
+                                              child: CircularProgressIndicator(strokeWidth: 2, color: colors.mutedForeground),
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  onChanged: _searchPersonalRecipient,
+                                ),
+                                if (_personalSearchResults.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: colors.card,
+                                      border: Border.all(color: colors.foreground, width: 1.5),
+                                    ),
+                                    child: Column(
+                                      children: List.generate(_personalSearchResults.length, (i) {
+                                        final profile = _personalSearchResults[i];
+                                        final name = profile['display_name'] as String? ?? 'User';
+                                        return GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () => _setPersonalRecipient(profile),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              border: i == 0 ? null : Border(
+                                                top: BorderSide(color: colors.foreground, width: 1.0),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 32, height: 32,
+                                                  decoration: BoxDecoration(
+                                                    border: Border.all(color: colors.foreground, width: 1.2),
+                                                  ),
+                                                  alignment: Alignment.center,
+                                                  child: Text(
+                                                    name[0].toUpperCase(),
+                                                    style: typo.lg.copyWith(fontSize: 12, color: colors.foreground),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Text(name, style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground)),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ],
 
                             if (_isGroupExpense) ...[
                               _label('SELECT GROUP', colors),
@@ -804,6 +934,56 @@ class _CreateTransactionScreenState
     }
   }
 
+  Future<void> _searchPersonalRecipient(String query) async {
+    if (query.trim().length < 2) {
+      setState(() => _personalSearchResults = []);
+      return;
+    }
+    setState(() => _personalSearching = true);
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final currentUserId = client.auth.currentUser?.id;
+      final data = await client
+          .from('profiles')
+          .select('id, display_name')
+          .ilike('display_name', '%${query.trim()}%')
+          .neq('id', currentUserId!)
+          .limit(8);
+      setState(() {
+        _personalSearchResults = List<Map<String, dynamic>>.from(data as List);
+        _personalSearching = false;
+      });
+    } catch (_) {
+      setState(() => _personalSearching = false);
+    }
+  }
+
+  Future<void> _setPersonalRecipient(Map<String, dynamic> profile) async {
+    final client = ref.read(supabaseClientProvider);
+    final currentUserId = client.auth.currentUser?.id;
+    String myName = 'You';
+    try {
+      final myProfile = await client
+          .from('profiles')
+          .select('display_name')
+          .eq('id', currentUserId!)
+          .maybeSingle();
+      if (myProfile != null) myName = myProfile['display_name'] as String? ?? 'You';
+    } catch (_) {}
+    setState(() {
+      _personalRecipient = profile;
+      _personalSearchController.clear();
+      _personalSearchResults = [];
+      _participants = [
+        _ParticipantEntry(userId: currentUserId!, displayName: myName, isPayer: true),
+        _ParticipantEntry(
+          userId: profile['id'] as String,
+          displayName: profile['display_name'] as String? ?? 'User',
+        ),
+      ];
+    });
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     _isSubmitting = true;
@@ -830,6 +1010,12 @@ class _CreateTransactionScreenState
         _isSubmitting = false;
         _amountError = 'Enter a valid amount';
       });
+      return;
+    }
+
+    if (!_isGroupExpense && _personalRecipient == null) {
+      setState(() => _isSubmitting = false);
+      _snack('Select who this IOU is with');
       return;
     }
 
