@@ -37,168 +37,292 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
 
-    return FScaffold(
-      child: SafeArea(
+    return Scaffold(
+      backgroundColor: colors.background, // Paper background
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
-
               // ── Brand header ──────────────────────────────────────────────
               Column(
                 children: [
-                  // Logo circle
+                  // Logo square (Brutalist style)
                   Container(
-                    width: 68,
-                    height: 68,
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
-                      color: colors.secondary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.border, width: 1.5),
+                      color: colors.primary,
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.foreground,
+                          offset: const Offset(4, 4),
+                        ),
+                      ],
                     ),
+                    alignment: Alignment.center,
                     child: Icon(
                       FIcons.handCoins,
-                      size: 30,
+                      size: 32,
                       color: colors.foreground,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   Text(
                     'eda',
-                    style: GoogleFonts.outfit(
-                      fontSize: 34,
+                    style: typo.xl4.copyWith(
+                      fontSize: 48,
                       fontWeight: FontWeight.w700,
                       color: colors.foreground,
-                      letterSpacing: -0.5,
+                      letterSpacing: -1.0,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     'Track who owes whom, simply.',
-                    style: typo.sm.copyWith(color: colors.mutedForeground),
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: colors.mutedForeground,
+                    ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 48),
 
               // ── Toggle Sign in / Sign up ──────────────────────────────────
               Container(
-                height: 44,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: colors.secondary,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.border),
+                  color: colors.card,
+                  border: Border.all(color: colors.foreground, width: 1.5),
                 ),
                 child: Row(
                   children: [
                     _tab('Sign in', !_isSignUp, () => setState(() => _isSignUp = false), colors, typo),
+                    Container(width: 1.5, color: colors.foreground),
                     _tab('Sign up', _isSignUp, () => setState(() => _isSignUp = true), colors, typo),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // ── Error alert ───────────────────────────────────────────────
               if (_errorMessage != null) ...[
-                FAlert(
-                  variant: FAlertVariant.destructive,
-                  icon: const Icon(FIcons.circleAlert),
-                  title: const Text('Error'),
-                  subtitle: Text(_errorMessage!),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colors.destructive,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(3, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(FIcons.circleAlert, color: colors.foreground),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
               ],
 
               // ── Full name (sign-up only) ───────────────────────────────────
               if (_isSignUp) ...[
-                FTextField(
-                  control: FTextFieldControl.managed(controller: _fullNameController),
-                  label: const Text('Full name'),
+                _buildLabel('FULL NAME', colors),
+                _buildTextField(
+                  controller: _fullNameController,
                   hint: 'Your full name',
-                  textInputAction: TextInputAction.next,
-                  prefixBuilder: (context, style, variants) =>
-                      FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.user)),
+                  icon: FIcons.user,
+                  colors: colors,
+                  typo: typo,
+                  action: TextInputAction.next,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
               ],
 
               // ── Email ─────────────────────────────────────────────────────
-              FTextField.email(
-                control: FTextFieldControl.managed(controller: _emailController),
+              _buildLabel('EMAIL', colors),
+              _buildTextField(
+                controller: _emailController,
                 hint: 'you@example.com',
-                prefixBuilder: (context, style, variants) =>
-                    FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.mail)),
+                icon: FIcons.mail,
+                colors: colors,
+                typo: typo,
+                action: TextInputAction.next,
+                keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
 
               // ── Password ──────────────────────────────────────────────────
-              FTextField.password(
-                control: FTextFieldControl.managed(controller: _passwordController),
+              _buildLabel('PASSWORD', colors),
+              _buildTextField(
+                controller: _passwordController,
                 hint: '••••••••',
-                textInputAction: _isSignUp ? TextInputAction.next : TextInputAction.done,
-                prefixBuilder: (context, style, obscure, variants) =>
-                    FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.lock)),
+                icon: FIcons.lock,
+                colors: colors,
+                typo: typo,
+                obscure: true,
+                action: _isSignUp ? TextInputAction.next : TextInputAction.done,
                 onSubmit: _isSignUp ? null : (_) => _handleEmailAction(),
               ),
 
               // ── Confirm password (sign-up) ────────────────────────────────
               if (_isSignUp) ...[
-                const SizedBox(height: 14),
-                FTextField.password(
-                  control: FTextFieldControl.managed(controller: _confirmPasswordController),
-                  label: const Text('Confirm password'),
+                const SizedBox(height: 20),
+                _buildLabel('CONFIRM PASSWORD', colors),
+                _buildTextField(
+                  controller: _confirmPasswordController,
                   hint: '••••••••',
-                  textInputAction: TextInputAction.done,
-                  prefixBuilder: (context, style, obscure, variants) =>
-                      FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.lock)),
+                  icon: FIcons.lock,
+                  colors: colors,
+                  typo: typo,
+                  obscure: true,
+                  action: TextInputAction.done,
                   onSubmit: (_) => _handleEmailAction(),
                 ),
               ],
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 36),
 
               // ── Submit ────────────────────────────────────────────────────
-              FButton(
-                variant: FButtonVariant.primary,
-                onPress: _isEmailLoading ? null : _handleEmailAction,
-                prefix: _isEmailLoading
-                    ? const SizedBox(width: 16, height: 16, child: FCircularProgress())
-                    : Icon(_isSignUp ? FIcons.userPlus : FIcons.logIn),
-                child: Text(_isSignUp ? 'Create account' : 'Sign in'),
+              GestureDetector(
+                onTap: _isEmailLoading ? null : _handleEmailAction,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(4, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: _isEmailLoading
+                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(_isSignUp ? FIcons.userPlus : FIcons.logIn, size: 20, color: colors.foreground),
+                            const SizedBox(width: 10),
+                            Text(
+                              _isSignUp ? 'Create account' : 'Sign in',
+                              style: typo.lg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
 
               // ── Google ────────────────────────────────────────────────────
-              FButton(
-                variant: FButtonVariant.outline,
-                onPress: _isGoogleLoading ? null : _handleGoogleSignIn,
-                prefix: _isGoogleLoading
-                    ? const SizedBox(width: 16, height: 16, child: FCircularProgress())
-                    : const Icon(FIcons.globe),
-                child: Text(_isGoogleLoading ? 'Launching Google…' : 'Continue with Google'),
+              GestureDetector(
+                onTap: _isGoogleLoading ? null : _handleGoogleSignIn,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(4, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: _isGoogleLoading
+                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(FIcons.globe, size: 20, color: colors.foreground),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Continue with Google',
+                              style: typo.lg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
 
               // ── Apple ─────────────────────────────────────────────────────
-              FButton(
-                variant: FButtonVariant.outline,
-                onPress: () => _showComingSoon('Apple Sign-In'),
-                prefix: const Icon(FIcons.apple),
-                child: const Text('Continue with Apple'),
+              GestureDetector(
+                onTap: () => _showComingSoon('Apple Sign-In'),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.foreground,
+                        offset: const Offset(4, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(FIcons.apple, size: 20, color: colors.foreground),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Continue with Apple',
+                        style: typo.lg.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 36),
 
               // ── Terms ─────────────────────────────────────────────────────
               Text(
                 'By continuing you agree to our Terms of Service and Privacy Policy.',
                 textAlign: TextAlign.center,
-                style: typo.xs.copyWith(color: colors.mutedForeground),
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: colors.mutedForeground,
+                ),
               ),
             ],
           ),
@@ -207,26 +331,74 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     );
   }
 
+  Widget _buildLabel(String text, FColors colors) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.6,
+          color: colors.mutedForeground,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required FColors colors,
+    required FTypography typo,
+    bool obscure = false,
+    TextInputAction action = TextInputAction.done,
+    TextInputType keyboardType = TextInputType.text,
+    void Function(String)? onSubmit,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      textInputAction: action,
+      keyboardType: keyboardType,
+      onSubmitted: onSubmit,
+      style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+        prefixIcon: Icon(icon, size: 18, color: colors.mutedForeground),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: colors.foreground, width: 1.5),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: colors.foreground, width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: colors.foreground, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
   Widget _tab(String label, bool selected, VoidCallback onTap, FColors colors, FTypography typo) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: selected ? colors.card : Colors.transparent,
-            borderRadius: BorderRadius.circular(7),
-            boxShadow: selected
-                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1))]
-                : [],
-          ),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          color: selected ? colors.primary : Colors.transparent,
           alignment: Alignment.center,
           child: Text(
             label,
-            style: typo.sm.copyWith(
-              color: selected ? colors.foreground : colors.mutedForeground,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: colors.foreground,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
