@@ -96,66 +96,171 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final colors = context.theme.colors;
     final typo = context.theme.typography;
 
-    return FScaffold(
-      header: const FHeader(title: Text('Set up your profile')),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(28, 32, 28, 40),
+    return Scaffold(
+      backgroundColor: colors.background, // Paper
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Header
             Container(
-              width: 80,
-              height: 80,
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
               decoration: BoxDecoration(
-                color: colors.secondary,
-                shape: BoxShape.circle,
-                border: Border.all(color: colors.border, width: 1.5),
+                border: Border(bottom: BorderSide(color: colors.foreground, width: 1.5)),
               ),
-              child: Icon(FIcons.user, size: 34, color: colors.foreground),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'What should we call you?',
-              style: GoogleFonts.outfit(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: colors.foreground,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Set up your profile',
+                      style: typo.xl2.copyWith(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                        letterSpacing: -0.24,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'This name is shown to others when you create\nor approve transactions.',
-              style:
-                  typo.sm.copyWith(color: colors.mutedForeground, height: 1.5),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 36),
-            FTextField(
-              control: FTextFieldControl.managed(controller: _nameController),
-              label: const Text('Your name'),
-              hint: 'e.g. Alex',
-              description: _nameError != null
-                  ? Text(_nameError!,
-                      style: typo.xs.copyWith(color: colors.destructive))
-                  : const Text('2-30 characters'),
-              enabled: !_isSubmitting,
-              textCapitalization: TextCapitalization.words,
-              inputFormatters: [LengthLimitingTextInputFormatter(30)],
-              prefixBuilder: (context, style, variants) =>
-                  FTextField.prefixIconBuilder(
-                      context, style, variants, const Icon(FIcons.user)),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: FButton(
-                onPress: _isSubmitting ? null : _next,
-                prefix: _isSubmitting
-                    ? const SizedBox(
-                        width: 18, height: 18, child: FCircularProgress())
-                    : const Icon(FIcons.arrowRight),
-                child: const Text('Next'),
+            
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(28, 48, 28, 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.foreground,
+                            offset: const Offset(4, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(FIcons.user, size: 34, color: colors.foreground),
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      'What should we call you?',
+                      style: typo.xl3.copyWith(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                        letterSpacing: -0.64,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'This name is shown to others when you create\nor approve transactions.',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: colors.mutedForeground,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 48),
+
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'YOUR NAME',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.6,
+                            color: colors.mutedForeground,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _nameController,
+                          enabled: !_isSubmitting,
+                          textCapitalization: TextCapitalization.words,
+                          inputFormatters: [LengthLimitingTextInputFormatter(30)],
+                          style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Alex',
+                            hintStyle: typo.sm.copyWith(color: colors.mutedForeground.withValues(alpha: 0.5)),
+                            prefixIcon: Icon(FIcons.user, size: 18, color: colors.mutedForeground),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.zero,
+                              borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.zero,
+                              borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.zero,
+                              borderSide: BorderSide(color: colors.foreground, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                        ),
+                        if (_nameError != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _nameError!,
+                            style: GoogleFonts.inter(fontSize: 12, color: colors.destructive),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '2-30 characters',
+                            style: GoogleFonts.inter(fontSize: 12, color: colors.mutedForeground),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    const SizedBox(height: 48),
+
+                    GestureDetector(
+                      onTap: _isSubmitting ? null : _next,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.foreground,
+                              offset: const Offset(4, 4),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: _isSubmitting
+                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Next',
+                                    style: typo.lg.copyWith(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.foreground,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Icon(FIcons.arrowRight, size: 20, color: colors.foreground),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
