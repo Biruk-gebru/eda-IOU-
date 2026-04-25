@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:eda/src/domain/entities/group.dart';
+import 'package:eda/src/domain/entities/group_member.dart';
 import 'package:eda/src/domain/entities/net_balance.dart';
 import 'package:eda/src/domain/entities/notification.dart';
 import 'package:eda/src/domain/entities/payment_request.dart';
@@ -211,6 +212,67 @@ void main() {
       expect(json['user_id'], n.userId);
       expect(json['type'], n.type);
       expect(json['read'], n.read);
+    });
+  });
+
+  // ─── GroupMember ──────────────────────────────────────────────────────────
+
+  group('GroupMember.fromJson', () {
+    test('parses active member with all fields', () {
+      final m = GroupMember.fromJson(groupMemberJson());
+      expect(m.id, 'mem-1');
+      expect(m.groupId, 'group-1');
+      expect(m.userId, kUserB);
+      expect(m.role, 'member');
+      expect(m.status, 'active');
+      expect(m.invitedBy, isNull);
+      expect(m.joinedAt, isNull);
+    });
+
+    test('parses pending member with invitedBy', () {
+      final m = GroupMember.fromJson(groupMemberJson(
+        status: 'pending',
+        invitedBy: kUserA,
+      ));
+      expect(m.status, 'pending');
+      expect(m.invitedBy, kUserA);
+    });
+
+    test('defaults status to active when absent', () {
+      final json = Map<String, dynamic>.from(groupMemberJson())
+        ..remove('status');
+      expect(GroupMember.fromJson(json).status, 'active');
+    });
+
+    test('defaults role to member when absent', () {
+      final json = Map<String, dynamic>.from(groupMemberJson())
+        ..remove('role');
+      expect(GroupMember.fromJson(json).role, 'member');
+    });
+
+    test('parses joinedAt when present', () {
+      final m = GroupMember.fromJson(groupMemberJson(
+        joinedAt: kCreatedAt.toIso8601String(),
+      ));
+      expect(m.joinedAt, kCreatedAt);
+    });
+
+    test('round-trip toJson preserves status and invitedBy', () {
+      final original = GroupMember.fromJson(groupMemberJson(
+        status: 'pending',
+        invitedBy: kUserA,
+      ));
+      final json = original.toJson();
+      expect(json['status'], 'pending');
+      expect(json['invited_by'], kUserA);
+      expect(json['group_id'], original.groupId);
+      expect(json['user_id'], original.userId);
+    });
+
+    test('toJson serialises null invitedBy as null', () {
+      final json = makeGroupMember().toJson();
+      expect(json.containsKey('invited_by'), isTrue);
+      expect(json['invited_by'], isNull);
     });
   });
 
