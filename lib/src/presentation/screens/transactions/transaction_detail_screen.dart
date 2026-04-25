@@ -24,36 +24,35 @@ class TransactionDetailScreen extends ConsumerStatefulWidget {
 class _TransactionDetailScreenState
     extends ConsumerState<TransactionDetailScreen> {
   bool _voting = false;
+  static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
 
   Future<void> _vote(bool approve) async {
     setState(() => _voting = true);
     try {
       final repo = ref.read(transactionRepositoryProvider);
-      final result =
-          await repo.voteTransaction(widget.transactionId, approve);
+      final result = await repo.voteTransaction(widget.transactionId, approve);
       final status = result['status'] as String? ?? 'pending';
 
       ref.invalidate(transactionDetailProvider(widget.transactionId));
-      ref.invalidate(
-          transactionParticipantsProvider(widget.transactionId));
+      ref.invalidate(transactionParticipantsProvider(widget.transactionId));
       ref.invalidate(transactionListProvider);
       ref.invalidate(balancesProvider);
 
       if (mounted) {
         final msg = approve
             ? (status == 'approved'
-                ? 'Transaction approved — balances updated'
-                : 'Vote recorded')
-            : (status == 'rejected'
-                ? 'Transaction rejected'
-                : 'Vote recorded');
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(msg)));
+                  ? 'Transaction approved — balances updated'
+                  : 'Vote recorded')
+            : (status == 'rejected' ? 'Transaction rejected' : 'Vote recorded');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _voting = false);
@@ -65,161 +64,363 @@ class _TransactionDetailScreenState
     final colors = context.theme.colors;
     final typo = context.theme.typography;
     final txAsync = ref.watch(transactionDetailProvider(widget.transactionId));
-    final partsAsync =
-        ref.watch(transactionParticipantsProvider(widget.transactionId));
-    final currentUserId =
-        ref.read(supabaseClientProvider).auth.currentUser?.id;
+    final partsAsync = ref.watch(
+      transactionParticipantsProvider(widget.transactionId),
+    );
+    final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
 
-    final isCreator = txAsync.whenOrNull(
-            data: (tx) => tx.creatorId == currentUserId) ??
+    final isCreator =
+        txAsync.whenOrNull(data: (tx) => tx.creatorId == currentUserId) ??
         false;
 
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('Transaction'),
-        prefixes: [
-          FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
-        ],
-        suffixes: [
-          if (isCreator)
-            FHeaderAction(
-              icon: const Icon(FIcons.trash2),
-              onPress: () => _confirmDelete(context),
-            ),
-        ],
-      ),
-      child: txAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
-              const SizedBox(height: 12),
-              Text('Error: $e',
-                  style: typo.sm.copyWith(color: colors.destructive)),
-              const SizedBox(height: 16),
-              FButton(
-                variant: FButtonVariant.outline,
-                onPress: () => ref
-                    .invalidate(transactionDetailProvider(widget.transactionId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-        data: (tx) => ListView(
-          padding: const EdgeInsets.fromLTRB(22, 16, 22, 40),
-          children: [
-            // Info card
-            _infoCard(tx, colors, typo),
-            const SizedBox(height: 20),
-
-            // Timeline
-            _label('STATUS', colors, typo),
-            const SizedBox(height: 10),
-            _timeline(tx, colors, typo),
-            const SizedBox(height: 24),
-
-            // Participants + voting
-            _label('PARTICIPANTS', colors, typo),
-            const SizedBox(height: 10),
-            partsAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator.adaptive()),
-              ),
-              error: (e, _) => Text('Error: $e'),
-              data: (parts) {
-                final ids = parts.map((p) => p.userId).toList();
-                ref.read(profileNameCacheProvider.notifier).prefetch(ids);
-                final names = ref.watch(profileNameCacheProvider);
-                return _participantsList(parts, tx, currentUserId, names, colors, typo);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoCard(
-      domain.Transaction tx, FColors colors, FTypography typo) {
-    final fmt = DateFormat('MMM d, yyyy h:mm a');
-
-    return FCard.raw(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Scaffold(
+      backgroundColor: colors.background, // Paper
+      body: SafeArea(
+        bottom: false,
+        child: txAsync.when(
+          loading: () =>
+              const Center(child: CircularProgressIndicator.adaptive()),
+          error: (e, _) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: Text(tx.description ?? 'No description',
-                      style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: colors.foreground)),
+                Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
+                const SizedBox(height: 12),
+                Text(
+                  'Error: $e',
+                  style: typo.sm.copyWith(color: colors.destructive),
                 ),
-                FBadge(
-                  variant: _badgeVariant(tx.status),
-                  child: Text(_statusLabel(tx.status)),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => ref.invalidate(
+                    transactionDetailProvider(widget.transactionId),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                    ),
+                    child: Text(
+                      'Retry',
+                      style: typo.sm.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text('ETB ${tx.totalAmount.toStringAsFixed(2)}',
-                style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: colors.foreground)),
-            const SizedBox(height: 8),
-            if (tx.createdAt != null)
-              Text('Created ${fmt.format(tx.createdAt!)}',
-                  style: typo.xs.copyWith(color: colors.mutedForeground)),
-            if (tx.timeoutAt != null && tx.status == 'pending') ...[
-              const SizedBox(height: 4),
-              Text(_timeoutText(tx.timeoutAt!),
-                  style: typo.xs.copyWith(color: colors.mutedForeground)),
-            ],
-          ],
+          ),
+          data: (tx) {
+            return Stack(
+              children: [
+                Column(
+                  children: [
+                    // ── Header ──────────────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: colors.foreground,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: colors.foreground,
+                                  width: 1.5,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '←',
+                                style: typo.lg.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Transaction',
+                              style: typo.lg.copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                          ),
+                          if (isCreator)
+                            GestureDetector(
+                              onTap: () => _confirmDelete(context),
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: colors.foreground,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  Icons.delete_outline,
+                                  size: 16,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Scrollable Body ───────────────────────────────────────
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.only(bottom: 120),
+                        children: [
+                          // ── Hero Info ───────────────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.all(22),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _statusLabel(tx.status).toUpperCase(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.6,
+                                    color: colors.mutedForeground,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  tx.description ?? 'No description',
+                                  style: typo.xl2.copyWith(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.foreground,
+                                    height: 1.1,
+                                    letterSpacing: -0.28,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _fmt.format(tx.totalAmount),
+                                  style: typo.xl4.copyWith(
+                                    fontSize: 44,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.foreground,
+                                    letterSpacing: -0.88,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                partsAsync.when(
+                                  data: (parts) => Text(
+                                    '${isCreator ? 'paid by you' : 'paid by someone else'} · split ${parts.length} ways',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      color: colors.mutedForeground,
+                                    ),
+                                  ),
+                                  loading: () => const SizedBox.shrink(),
+                                  error: (_, __) => const SizedBox.shrink(),
+                                ),
+                                if (tx.timeoutAt != null &&
+                                    tx.status == 'pending') ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _timeoutText(tx.timeoutAt!),
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      color: colors.destructive,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          // ── Participants Box ────────────────────────────────
+                          partsAsync.when(
+                            loading: () => const Padding(
+                              padding: EdgeInsets.all(22),
+                              child: Center(
+                                child: CircularProgressIndicator.adaptive(),
+                              ),
+                            ),
+                            error: (e, _) => Padding(
+                              padding: const EdgeInsets.all(22),
+                              child: Text('Error: $e'),
+                            ),
+                            data: (parts) {
+                              final ids = parts.map((p) => p.userId).toList();
+                              ref
+                                  .read(profileNameCacheProvider.notifier)
+                                  .prefetch(ids);
+                              final names = ref.watch(profileNameCacheProvider);
+                              return _participantsBox(
+                                parts,
+                                tx,
+                                currentUserId,
+                                names,
+                                colors,
+                                typo,
+                              );
+                            },
+                          ),
+
+                          // ── Timeline ────────────────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(22, 24, 22, 12),
+                            child: Text(
+                              'Timeline',
+                              style: typo.lg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 22),
+                            child: _timelineList(tx, colors, typo),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // ── Fixed Bottom Actions ────────────────────────────────────
+                partsAsync.when(
+                  data: (parts) {
+                    final myEntry = parts
+                        .where(
+                          (p) =>
+                              p.userId == currentUserId && p.approved == null,
+                        )
+                        .firstOrNull;
+                    final canVote = myEntry != null && tx.status == 'pending';
+
+                    if (!canVote) return const SizedBox.shrink();
+
+                    return Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(22, 12, 22, 20),
+                        decoration: BoxDecoration(
+                          color: colors.background, // Paper
+                          border: Border(
+                            top: BorderSide(
+                              color: colors.foreground,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: _voting ? null : () => _vote(false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    border: Border.all(
+                                      color: colors.foreground,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    'Decline',
+                                    style: typo.lg.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.foreground,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: _voting ? null : () => _vote(true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colors.primary, // Accent
+                                    border: Border.all(
+                                      color: colors.foreground,
+                                      width: 1.5,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: colors.foreground,
+                                        offset: const Offset(3, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: _voting
+                                      ? SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            color: colors.foreground,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Approve',
+                                          style: typo.lg.copyWith(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: colors.foreground,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _timeline(
-      domain.Transaction tx, FColors colors, FTypography typo) {
-    final steps = [
-      ('Created', true),
-      ('Approvals',
-          tx.status == 'approved' || tx.status == 'rejected'),
-      ('Balances updated', tx.status == 'applied'),
-    ];
-
-    return Column(
-      children: [
-        for (final (label, done) in steps)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: FTile(
-              prefix: Icon(
-                done ? FIcons.circleCheck : FIcons.circle,
-                size: 18,
-                color: done ? colors.primary : colors.mutedForeground,
-              ),
-              title: Text(label,
-                  style: typo.sm.copyWith(
-                      color: done ? colors.foreground : colors.mutedForeground,
-                      fontWeight: done ? FontWeight.w500 : FontWeight.normal)),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _participantsList(
+  Widget _participantsBox(
     List<TransactionParticipant> parts,
     domain.Transaction tx,
     String? currentUserId,
@@ -227,164 +428,168 @@ class _TransactionDetailScreenState
     FColors colors,
     FTypography typo,
   ) {
-    final myEntry = parts
-        .where((p) => p.userId == currentUserId && p.approved == null)
-        .firstOrNull;
-    final canVote = myEntry != null && tx.status == 'pending';
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 22),
+      decoration: BoxDecoration(
+        color: colors.card,
+        border: Border.all(color: colors.foreground, width: 1.5),
+      ),
+      child: Column(
+        children: List.generate(parts.length, (i) {
+          final p = parts[i];
+          final name = names[p.userId] ?? '...';
+          final isMe = p.userId == currentUserId;
 
-    return Column(
-      children: [
-        for (final p in parts)
-          _participantTile(p, currentUserId, names, colors, typo),
+          String statusText = 'Pending';
+          if (p.approved == true) statusText = 'Approved';
+          if (p.approved == false) statusText = 'Rejected';
+          if (tx.creatorId == p.userId) statusText = 'Paid';
 
-        if (canVote) ...[
-          const SizedBox(height: 16),
-          FCard.raw(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Your approval is needed',
-                      style: typo.sm.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colors.foreground)),
-                  const SizedBox(height: 4),
-                  Text(
-                      'You owe ETB ${myEntry.amountDue.toStringAsFixed(2)} to the payer',
-                      style:
-                          typo.xs.copyWith(color: colors.mutedForeground)),
-                  const SizedBox(height: 14),
-                  Row(
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              border: i == 0
+                  ? null
+                  : Border(
+                      top: BorderSide(color: colors.foreground, width: 1.0),
+                    ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    border: Border.all(color: colors.foreground, width: 1.2),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: typo.lg.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: FButton(
-                          variant: FButtonVariant.destructive,
-                          onPress: _voting ? null : () => _vote(false),
-                          prefix: const Icon(FIcons.x),
-                          child: const Text('Reject'),
+                      Text(
+                        isMe ? 'You' : name,
+                        style: typo.lg.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FButton(
-                          onPress: _voting ? null : () => _vote(true),
-                          prefix: _voting
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator
-                                      .adaptive(strokeWidth: 2))
-                              : const Icon(FIcons.check),
-                          child: const Text('Approve'),
+                      const SizedBox(height: 2),
+                      Text(
+                        statusText,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          color: colors.mutedForeground,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                Text(
+                  _fmt.format(p.amountDue),
+                  style: typo.lg.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _participantTile(
-    TransactionParticipant p,
-    String? currentUserId,
-    Map<String, String> names,
-    FColors colors,
-    FTypography typo,
-  ) {
-    final name = names[p.userId] ?? '...';
-    final isMe = p.userId == currentUserId;
-    final statusText = p.approved == true
-        ? 'Approved'
-        : p.approved == false
-            ? 'Rejected'
-            : 'Pending';
-    final statusColor = p.approved == true
-        ? colors.primary
-        : p.approved == false
-            ? colors.destructive
-            : colors.mutedForeground;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: FCard.raw(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                  style: typo.sm.copyWith(
-                      fontWeight: FontWeight.w600, color: statusColor),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isMe ? 'You' : name,
-                        style: typo.sm.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: colors.foreground)),
-                    Text(
-                        'ETB ${p.amountDue.toStringAsFixed(2)} · $statusText',
-                        style: typo.xs
-                            .copyWith(color: colors.mutedForeground)),
-                  ],
-                ),
-              ),
-              FBadge(
-                variant: p.approved == true
-                    ? FBadgeVariant.primary
-                    : p.approved == false
-                        ? FBadgeVariant.destructive
-                        : FBadgeVariant.outline,
-                child: Text(statusText),
-              ),
-            ],
-          ),
-        ),
+          );
+        }),
       ),
     );
   }
 
-  Widget _label(String text, FColors colors, FTypography typo) => Text(
-        text,
-        style: typo.xs.copyWith(
-          fontWeight: FontWeight.w600,
-          color: colors.mutedForeground,
-          letterSpacing: 0.8,
-        ),
-      );
+  Widget _timelineList(
+    domain.Transaction tx,
+    FColors colors,
+    FTypography typo,
+  ) {
+    final steps = [
+      ('Created', true),
+      ('Approvals', tx.status == 'approved' || tx.status == 'rejected'),
+      ('Balances updated', tx.status == 'applied'),
+    ];
 
-  FBadgeVariant _badgeVariant(String status) => switch (status) {
-        'approved' || 'applied' => FBadgeVariant.primary,
-        'rejected' || 'cancelled' => FBadgeVariant.destructive,
-        _ => FBadgeVariant.outline,
-      };
+    return Column(
+      children: List.generate(steps.length, (i) {
+        final (label, done) = steps[i];
+        final isLast = i == steps.length - 1;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: i == 0
+                ? Border(top: BorderSide(color: colors.foreground, width: 1.5))
+                : const Border(top: BorderSide(color: Colors.transparent)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                margin: const EdgeInsets.only(top: 6),
+                decoration: BoxDecoration(
+                  color: done ? colors.foreground : Colors.transparent,
+                  border: Border.all(color: colors.foreground, width: 1.2),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      i == 0
+                          ? 'NOW'
+                          : 'PENDING', // Ideally these are real timestamps
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        color: colors.mutedForeground,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
 
   String _statusLabel(String s) => switch (s) {
-        'approved' => 'Approved',
-        'applied' => 'Applied',
-        'rejected' => 'Rejected',
-        'cancelled' => 'Cancelled',
-        'pending' => 'Pending',
-        _ => s,
-      };
+    'approved' => 'Approved',
+    'applied' => 'Applied',
+    'rejected' => 'Rejected',
+    'cancelled' => 'Cancelled',
+    'pending' => 'Pending Approval',
+    _ => s,
+  };
 
   String _timeoutText(DateTime t) {
     final r = t.difference(DateTime.now());
@@ -396,57 +601,138 @@ class _TransactionDetailScreenState
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
-    final tx = ref.read(transactionDetailProvider(widget.transactionId)).valueOrNull;
+    final tx = ref
+        .read(transactionDetailProvider(widget.transactionId))
+        .valueOrNull;
     final isPending = tx?.status == 'pending';
+    
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
 
-    await showFDialog(
+    await showDialog(
       context: context,
-      builder: (ctx, style, animation) => FDialog(
-        animation: animation,
-        direction: Axis.horizontal,
-        title: const Text('Delete transaction'),
-        body: Text(isPending
-            ? 'This will cancel and delete this pending transaction.'
-            : 'This approved transaction will be reversed. All participants will be notified.'),
-        actions: [
-          FButton(
-            variant: FButtonVariant.destructive,
-            onPress: () async {
-              Navigator.of(ctx).pop();
-              try {
-                final repo = ref.read(transactionRepositoryProvider);
-                if (isPending) {
-                  await ref.read(supabaseClientProvider)
-                      .from('transactions')
-                      .update({'status': 'cancelled'})
-                      .eq('id', widget.transactionId);
-                }
-                await repo.deleteTransaction(widget.transactionId);
-
-                ref.invalidate(transactionListProvider);
-                ref.invalidate(balancesProvider);
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Transaction deleted')),
-                  );
-                  Navigator.of(context).pop();
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              }
-            },
-            child: const Text('Delete'),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(22),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: colors.background,
+            border: Border.all(color: colors.foreground, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: colors.foreground,
+                offset: const Offset(6, 6),
+              ),
+            ],
           ),
-          FButton(
-            variant: FButtonVariant.outline,
-            onPress: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Delete transaction',
+                style: typo.lg.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isPending
+                    ? 'This will cancel and delete this pending transaction.'
+                    : 'This approved transaction will be reversed. All participants will be notified.',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: colors.mutedForeground,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Cancel',
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        try {
+                          final repo = ref.read(transactionRepositoryProvider);
+                          if (isPending) {
+                            await ref
+                                .read(supabaseClientProvider)
+                                .from('transactions')
+                                .update({'status': 'cancelled'})
+                                .eq('id', widget.transactionId);
+                          }
+                          await repo.deleteTransaction(widget.transactionId);
+
+                          ref.invalidate(transactionListProvider);
+                          ref.invalidate(balancesProvider);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Transaction deleted')),
+                            );
+                            Navigator.of(context).pop();
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          }
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: colors.destructive,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.foreground,
+                              offset: const Offset(3, 3),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Delete',
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
