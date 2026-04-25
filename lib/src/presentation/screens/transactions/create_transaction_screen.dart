@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/auth_providers.dart';
 import '../../providers/group_providers.dart';
@@ -12,10 +13,12 @@ class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
 
   @override
-  ConsumerState<CreateTransactionScreen> createState() => _CreateTransactionScreenState();
+  ConsumerState<CreateTransactionScreen> createState() =>
+      _CreateTransactionScreenState();
 }
 
-class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScreen> {
+class _CreateTransactionScreenState
+    extends ConsumerState<CreateTransactionScreen> {
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
 
@@ -41,149 +44,554 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final typo = context.theme.typography;
     final groupsAsync = ref.watch(groupListProvider);
 
-    return FScaffold(
-      header: FHeader.nested(
-        title: const Text('New Transaction'),
-        prefixes: [FHeaderAction.back(onPress: () => Navigator.of(context).pop())],
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(22, 20, 22, 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      backgroundColor: colors.background, // Paper
+      body: SafeArea(
+        bottom: false,
+        child: Stack(
           children: [
-            // ── Type toggle: Group / Personal ─────────────────────────────
-            _sectionLabel('TYPE', colors, typo),
-            const SizedBox(height: 10),
-            Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: colors.secondary,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.border),
-              ),
-              child: Row(
-                children: [
-                  _typeTab('Group', _isGroupExpense, FIcons.users,
-                      () => setState(() => _isGroupExpense = true), colors, typo),
-                  _typeTab('Personal', !_isGroupExpense, FIcons.user,
-                      () => setState(() { _isGroupExpense = false; _selectedGroup = null; _participants = []; }),
-                      colors, typo),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Group selector ────────────────────────────────────────────
-            if (_isGroupExpense) ...[
-              _sectionLabel('SELECT GROUP', colors, typo),
-              const SizedBox(height: 10),
-              groupsAsync.when(
-                data: (groups) {
-                  if (groups.isEmpty) {
-                    return FAlert(
-                      icon: const Icon(FIcons.info),
-                      title: const Text('No groups yet'),
-                      subtitle: const Text('Create a group first to make group transactions.'),
-                    );
-                  }
-                  return FTileGroup(
+            Column(
+              children: [
+                // ── Header ──────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: colors.foreground, width: 1.5),
+                    ),
+                  ),
+                  child: Row(
                     children: [
-                      for (final group in groups)
-                        FTile(
-                          prefix: _avatarCircle(group.name, colors, typo),
-                          title: Text(group.name),
-                          subtitle: group.description != null ? Text(group.description!) : null,
-                          selected: _selectedGroup?.id == group.id,
-                          suffix: _selectedGroup?.id == group.id
-                              ? Icon(FIcons.check, size: 16, color: colors.foreground)
-                              : Icon(FIcons.chevronRight, size: 14, color: colors.border),
-                          onPress: () { setState(() => _selectedGroup = group); _loadGroupMembers(group.id); },
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: colors.foreground,
+                              width: 1.5,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '×',
+                            style: typo.lg.copyWith(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
+                              height: 1.0,
+                            ),
+                          ),
                         ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'New IOU',
+                          style: typo.lg.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
+                        ),
+                      ),
                     ],
-                  );
-                },
-                loading: () => const Center(child: FCircularProgress()),
-                error: (e, _) => FAlert(
-                  variant: FAlertVariant.destructive,
-                  icon: const Icon(FIcons.circleAlert),
-                  title: const Text('Error loading groups'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-            ],
 
-            // ── Description ───────────────────────────────────────────────
-            _sectionLabel('DESCRIPTION', colors, typo),
-            const SizedBox(height: 10),
-            FTextField(
-              control: FTextFieldControl.managed(controller: _descriptionController),
-              hint: 'e.g. Dinner at restaurant',
-              description: _descError != null
-                  ? Text(_descError!, style: typo.xs.copyWith(color: colors.destructive))
-                  : null,
-              prefixBuilder: (context, style, variants) =>
-                  FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.fileText)),
+                // ── Scrollable Body ───────────────────────────────────────
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.only(bottom: 120),
+                    children: [
+                      // ── Amount ──────────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.all(22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _label('AMOUNT', colors),
+                            const SizedBox(height: 6),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  'ETB',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 14,
+                                    color: colors.mutedForeground,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _amountController,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                        RegExp(r'[\d.]'),
+                                      ),
+                                    ],
+                                    style: typo.xl4.copyWith(
+                                      fontSize: 56,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.foreground,
+                                      letterSpacing: -1.12,
+                                      height: 1.1,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: '0.00',
+                                      hintStyle: typo.xl4.copyWith(
+                                        fontSize: 56,
+                                        fontWeight: FontWeight.w600,
+                                        color: colors.mutedForeground
+                                            .withValues(alpha: 0.3),
+                                        letterSpacing: -1.12,
+                                      ),
+                                      border: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              height: 1.5,
+                              color: colors.foreground,
+                              margin: const EdgeInsets.only(top: 4),
+                            ),
+                            if (_amountError != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  _amountError!,
+                                  style: typo.xs.copyWith(
+                                    color: colors.destructive,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+
+                      // ── Details Form ────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _label('WHAT FOR?', colors),
+                            TextField(
+                              controller: _descriptionController,
+                              style: typo.lg.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: colors.foreground,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'e.g. Dinner at restaurant',
+                                hintStyle: typo.lg.copyWith(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.mutedForeground.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                                border: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: colors.foreground,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: colors.foreground,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: colors.foreground,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                            if (_descError != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  _descError!,
+                                  style: typo.xs.copyWith(
+                                    color: colors.destructive,
+                                  ),
+                                ),
+                              ),
+
+                            const SizedBox(height: 24),
+
+                            // ── Type Toggle ─────────────────────────────
+                            _label('CONTEXT', colors),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: colors.foreground,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => setState(
+                                        () => _isGroupExpense = true,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _isGroupExpense
+                                              ? colors.foreground
+                                              : Colors.transparent,
+                                          border: Border(
+                                            right: BorderSide(
+                                              color: colors.foreground,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          'Group',
+                                          style: typo.lg.copyWith(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: _isGroupExpense
+                                                ? colors.background
+                                                : colors.foreground,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => setState(() {
+                                        _isGroupExpense = false;
+                                        _selectedGroup = null;
+                                        _participants = [];
+                                      }),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: !_isGroupExpense
+                                              ? colors.foreground
+                                              : Colors.transparent,
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          'Personal',
+                                          style: typo.lg.copyWith(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: !_isGroupExpense
+                                                ? colors.background
+                                                : colors.foreground,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            if (_isGroupExpense) ...[
+                              _label('SELECT GROUP', colors),
+                              const SizedBox(height: 8),
+                              groupsAsync.when(
+                                loading: () => const Center(
+                                  child: CircularProgressIndicator.adaptive(),
+                                ),
+                                error: (e, _) => Text('Error: $e'),
+                                data: (groups) {
+                                  if (groups.isEmpty)
+                                    return const Text(
+                                      'No groups yet. Create one first.',
+                                    );
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: colors.card,
+                                      border: Border.all(
+                                        color: colors.foreground,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: List.generate(groups.length, (
+                                        i,
+                                      ) {
+                                        final group = groups[i];
+                                        final isSelected =
+                                            _selectedGroup?.id == group.id;
+                                        return GestureDetector(
+                                          onTap: () {
+                                            setState(
+                                              () => _selectedGroup = group,
+                                            );
+                                            _loadGroupMembers(group.id);
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(14),
+                                            decoration: BoxDecoration(
+                                              border: i == 0
+                                                  ? null
+                                                  : Border(
+                                                      top: BorderSide(
+                                                        color:
+                                                            colors.foreground,
+                                                        width: 1.0,
+                                                      ),
+                                                    ),
+                                              color: isSelected
+                                                  ? colors.primary.withValues(
+                                                      alpha: 0.1,
+                                                    )
+                                                  : Colors.transparent,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 32,
+                                                  height: 32,
+                                                  decoration: BoxDecoration(
+                                                    border: Border.all(
+                                                      color: colors.foreground,
+                                                      width: 1.2,
+                                                    ),
+                                                  ),
+                                                  alignment: Alignment.center,
+                                                  child: Text(
+                                                    group.name.isNotEmpty
+                                                        ? group.name[0]
+                                                              .toUpperCase()
+                                                        : '?',
+                                                    style: typo.lg.copyWith(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: colors.foreground,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    group.name,
+                                                    style: typo.sm.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      color: colors.foreground,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (isSelected)
+                                                  Icon(
+                                                    Icons.check,
+                                                    size: 18,
+                                                    color: colors.foreground,
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Participants ────────────────────────────────────
+                      if (_participants.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 22),
+                          child: _label('SPLIT WITH', colors),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 22),
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            border: Border.all(
+                              color: colors.foreground,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            children: List.generate(_participants.length, (i) {
+                              final p = _participants[i];
+                              return _participantRow(p, i == 0, colors, typo);
+                            }),
+                          ),
+                        ),
+
+                        // ── Split Method Toggle ──────────────────────────
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 22),
+                          child: _label('SPLIT METHOD', colors),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 22),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: colors.foreground,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _customSplit = false),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: !_customSplit
+                                          ? colors.foreground
+                                          : Colors.transparent,
+                                      border: Border(
+                                        right: BorderSide(
+                                          color: colors.foreground,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'Equal',
+                                      style: typo.lg.copyWith(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: !_customSplit
+                                            ? colors.background
+                                            : colors.foreground,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _customSplit = true),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _customSplit
+                                          ? colors.foreground
+                                          : Colors.transparent,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'Exact',
+                                      style: typo.lg.copyWith(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: _customSplit
+                                            ? colors.background
+                                            : colors.foreground,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
 
-            const SizedBox(height: 16),
-
-            // ── Amount ─────────────────────────────────────────────────────
-            _sectionLabel('AMOUNT (ETB)', colors, typo),
-            const SizedBox(height: 10),
-            FTextField(
-              control: FTextFieldControl.managed(controller: _amountController),
-              hint: '0.00',
-              description: _amountError != null
-                  ? Text(_amountError!, style: typo.xs.copyWith(color: colors.destructive))
-                  : null,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
-              prefixBuilder: (context, style, variants) =>
-                  FTextField.prefixIconBuilder(context, style, variants, const Icon(FIcons.coins)),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Split ──────────────────────────────────────────────────────
-            FSwitch(
-              label: const Text('Custom split'),
-              description: const Text('Toggle for unequal amounts'),
-              value: _customSplit,
-              onChange: (v) => setState(() => _customSplit = v),
-            ),
-
-            // ── Participants ───────────────────────────────────────────────
-            if (_participants.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              _sectionLabel('PARTICIPANTS', colors, typo),
-              const SizedBox(height: 10),
-              FTileGroup(
-                children: [for (final p in _participants) _participantTile(p, colors, typo)],
-              ),
-            ],
-
-            const SizedBox(height: 20),
-
-            // ── Approval rules info ────────────────────────────────────────
-            FAlert(
-              icon: const Icon(FIcons.info),
-              title: const Text('Auto-approval rules'),
-              subtitle: const Text(
-                  'Majority of participants must approve within 48 h. Auto-cancels if no response.'),
-            ),
-
-            const SizedBox(height: 28),
-
-            // ── Submit ────────────────────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: FButton(
-                onPress: _isSubmitting ? null : _submit,
-                prefix: _isSubmitting
-                    ? const SizedBox(width: 18, height: 18, child: FCircularProgress())
-                    : const Icon(FIcons.send),
-                child: const Text('Submit for approval'),
+            // ── Fixed Bottom Actions ────────────────────────────────────
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 20),
+                decoration: BoxDecoration(
+                  color: colors.background, // Paper
+                  border: Border(
+                    top: BorderSide(color: colors.foreground, width: 1.5),
+                  ),
+                ),
+                child: GestureDetector(
+                  onTap: _isSubmitting ? null : _submit,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: colors.primary, // Accent
+                      border: Border.all(color: colors.foreground, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.foreground,
+                          offset: const Offset(4, 4),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: _isSubmitting
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: colors.foreground,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Send IOU · ETB ${_amountController.text.isNotEmpty ? _amountController.text : "0.00"}',
+                            style: typo.lg.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
+                            ),
+                          ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -192,106 +600,171 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     );
   }
 
-  Widget _typeTab(String label, bool selected, IconData icon, VoidCallback onTap, FColors colors, FTypography typo) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: selected ? colors.card : Colors.transparent,
-            borderRadius: BorderRadius.circular(7),
-            boxShadow: selected
-                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1))]
-                : [],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: selected ? colors.foreground : colors.mutedForeground),
-              const SizedBox(width: 6),
-              Text(label,
-                  style: typo.sm.copyWith(
-                    color: selected ? colors.foreground : colors.mutedForeground,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  )),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _label(String text, FColors colors) => Text(
+    text,
+    style: GoogleFonts.inter(
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.6,
+      color: colors.mutedForeground,
+    ),
+  );
 
-  FTile _participantTile(_ParticipantEntry p, FColors colors, FTypography typo) {
-    // Payer (creator) is shown but not included in split
+  Widget _participantRow(
+    _ParticipantEntry p,
+    bool isFirst,
+    FColors colors,
+    FTypography typo,
+  ) {
     if (p.isPayer) {
-      return FTile(
-        prefix: Icon(FIcons.wallet, size: 18, color: colors.primary),
-        title: Text('${p.displayName} (You)',
-            style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
-        subtitle: Text('Paying — not included in split',
-            style: typo.xs.copyWith(color: colors.mutedForeground)),
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: isFirst
+              ? null
+              : Border(top: BorderSide(color: colors.foreground, width: 1.0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                border: Border.all(color: colors.foreground, width: 1.2),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                p.displayName[0].toUpperCase(),
+                style: typo.lg.copyWith(fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '${p.displayName} (You)',
+                style: typo.sm.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Text(
+              'Paying',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 13,
+                color: colors.mutedForeground,
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    final amountCtl = TextEditingController(text: p.customAmount?.toStringAsFixed(2) ?? '');
-    amountCtl.addListener(() => p.customAmount = double.tryParse(amountCtl.text));
-
-    return FTile(
-      prefix: FCheckbox(
-        value: p.included,
-        onChange: (v) => setState(() => p.included = v),
-      ),
-      title: Text(p.displayName,
-          style: typo.sm.copyWith(fontWeight: FontWeight.w500)),
-      subtitle: _customSplit
-          ? SizedBox(
-              width: 120,
-              child: FTextField(
-                control: FTextFieldControl.managed(controller: amountCtl),
-                hint: 'Amount',
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
-              ),
-            )
-          : Text(
-              _equalSplitPreview(),
-              style: typo.xs.copyWith(color: colors.mutedForeground),
-            ),
+    final amountCtl = TextEditingController(
+      text: p.customAmount?.toStringAsFixed(2) ?? '',
     );
-  }
-
-  Widget _avatarCircle(String name, FColors colors, FTypography typo) {
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: colors.secondary,
-        shape: BoxShape.circle,
-        border: Border.all(color: colors.border),
-      ),
-      alignment: Alignment.center,
-      child: Text(initial, style: typo.xs.copyWith(fontWeight: FontWeight.w600, color: colors.foreground)),
+    amountCtl.addListener(
+      () => p.customAmount = double.tryParse(amountCtl.text),
     );
-  }
 
-  Widget _sectionLabel(String text, FColors colors, FTypography typo) => Text(
-        text,
-        style: typo.xs.copyWith(
-          fontWeight: FontWeight.w600,
-          color: colors.mutedForeground,
-          letterSpacing: 0.8,
+    return GestureDetector(
+      onTap: () {
+        if (!_customSplit) setState(() => p.included = !p.included);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: isFirst
+              ? null
+              : Border(top: BorderSide(color: colors.foreground, width: 1.0)),
         ),
-      );
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                border: Border.all(color: colors.foreground, width: 1.2),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                p.displayName[0].toUpperCase(),
+                style: typo.lg.copyWith(fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                p.displayName,
+                style: typo.sm.copyWith(fontWeight: FontWeight.w500),
+              ),
+            ),
+            if (_customSplit)
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  controller: amountCtl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                  ],
+                  textAlign: TextAlign.right,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
+                    color: colors.foreground,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Amount',
+                    hintStyle: GoogleFonts.jetBrainsMono(
+                      fontSize: 13,
+                      color: colors.mutedForeground,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              )
+            else
+              Text(
+                _equalSplitPreview(),
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 13,
+                  color: colors.foreground,
+                ),
+              ),
+            const SizedBox(width: 12),
+            if (!_customSplit)
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: p.included ? colors.primary : Colors.transparent,
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: p.included
+                    ? Text(
+                        '✓',
+                        style: typo.lg.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          height: 1.0,
+                        ),
+                      )
+                    : null,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   String _equalSplitPreview() {
     final total = double.tryParse(_amountController.text.trim());
     final n = _participants.where((p) => p.included).length;
-    if (total == null || total <= 0 || n < 2) return 'Equal split';
+    if (total == null || total <= 0 || n < 2) return '—';
     final perPerson = (total / n * 100).round() / 100;
-    return 'ETB ${perPerson.toStringAsFixed(2)} each (÷$n)';
+    return perPerson.toStringAsFixed(2);
   }
 
   Future<void> _loadGroupMembers(String groupId) async {
@@ -303,44 +776,69 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
       for (final member in members) {
         String displayName = 'User';
         try {
-          final profile = await client.from('profiles').select('display_name').eq('id', member.userId).maybeSingle();
-          if (profile != null && profile['display_name'] != null) displayName = profile['display_name'] as String;
+          final profile = await client
+              .from('profiles')
+              .select('display_name')
+              .eq('id', member.userId)
+              .maybeSingle();
+          if (profile != null && profile['display_name'] != null)
+            displayName = profile['display_name'] as String;
         } catch (_) {}
         final isPayer = member.userId == currentUserId;
         if (isPayer) displayName = 'You';
-        entries.add(_ParticipantEntry(userId: member.userId, displayName: displayName, isPayer: isPayer));
+        entries.add(
+          _ParticipantEntry(
+            userId: member.userId,
+            displayName: displayName,
+            isPayer: isPayer,
+          ),
+        );
       }
       setState(() => _participants = entries);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
-    _isSubmitting = true; // guard synchronously before any await or setState
+    _isSubmitting = true;
 
-    setState(() { _descError = null; _amountError = null; });
+    setState(() {
+      _descError = null;
+      _amountError = null;
+    });
 
     final description = _descriptionController.text.trim();
     final amountText = _amountController.text.trim();
 
     if (description.isEmpty) {
-      setState(() { _isSubmitting = false; _descError = 'Description is required'; });
+      setState(() {
+        _isSubmitting = false;
+        _descError = 'Description is required';
+      });
       return;
     }
 
     final totalAmount = double.tryParse(amountText);
     if (totalAmount == null || totalAmount <= 0) {
-      setState(() { _isSubmitting = false; _amountError = 'Enter a valid amount'; });
+      setState(() {
+        _isSubmitting = false;
+        _amountError = 'Enter a valid amount';
+      });
       return;
     }
 
     final client = ref.read(supabaseClientProvider);
     final currentUserId = client.auth.currentUser?.id;
-    if (currentUserId == null) { setState(() => _isSubmitting = false); return; }
+    if (currentUserId == null) {
+      setState(() => _isSubmitting = false);
+      return;
+    }
 
-    // Only include non-payer participants (creator pays, others owe)
     final others = _participants
         .where((p) => p.included && !p.isPayer)
         .toList();
@@ -351,34 +849,32 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
       return;
     }
 
-    setState(() {}); // trigger visual spinner now that we know we'll submit
+    setState(() {});
 
     final maps = <Map<String, dynamic>>[];
 
     if (_customSplit) {
-      // Validate custom amounts
       double sum = 0;
       for (final p in others) {
         final amt = p.customAmount ?? 0;
         if (amt <= 0) {
           _snack('Enter an amount for ${p.displayName}');
+          setState(() => _isSubmitting = false);
           return;
         }
         sum += amt;
       }
-      // Sum must equal total (with small tolerance for floating point)
       if ((sum - totalAmount).abs() > 0.01) {
         _snack(
-            'Split amounts (${sum.toStringAsFixed(2)}) must equal total (${totalAmount.toStringAsFixed(2)})');
+          'Split amounts (${sum.toStringAsFixed(2)}) must equal total (${totalAmount.toStringAsFixed(2)})',
+        );
+        setState(() => _isSubmitting = false);
         return;
       }
       for (final p in others) {
         maps.add({'user_id': p.userId, 'amount_due': p.customAmount!});
       }
     } else {
-      // Equal split: divide by ALL included participants (payer covers their own share).
-      // The payer's implicit share is deducted before distributing the remainder to the
-      // last non-payer, so floating-point cents always sum to exactly totalAmount.
       final allIncluded = _participants.where((p) => p.included).toList();
       final n = allIncluded.length;
       final perPerson = (totalAmount / n * 100).round() / 100;
@@ -386,7 +882,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
       for (int i = 0; i < others.length; i++) {
         final isLast = i == others.length - 1;
         final amount = isLast
-            ? double.parse((totalAmount - perPerson - assigned).toStringAsFixed(2))
+            ? double.parse(
+                (totalAmount - perPerson - assigned).toStringAsFixed(2),
+              )
             : perPerson;
         maps.add({'user_id': others[i].userId, 'amount_due': amount});
         assigned += perPerson;
@@ -394,7 +892,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     }
 
     try {
-      await ref.read(transactionRepositoryProvider).createTransaction(
+      await ref
+          .read(transactionRepositoryProvider)
+          .createTransaction(
             groupId: _selectedGroup?.id,
             payerId: currentUserId,
             totalAmount: totalAmount,
@@ -403,44 +903,76 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
           );
       ref.invalidate(transactionListProvider);
       if (mounted) {
-        // Show success dialog then pop
-        await showFDialog(
-          context: context,
-          builder: (ctx, style, animation) => FDialog(
-            animation: animation,
-            title: const Text('Transaction sent'),
-            body: Text(
-              '$description — ETB ${totalAmount.toStringAsFixed(2)}\n'
-              'Split ${_participants.where((p) => p.included).length} ways. '
-              'Waiting for ${others.length} participant${others.length > 1 ? "s" : ""} to approve.',
-            ),
-            actions: [
-              FButton(
-                onPress: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Done'),
-              ),
-            ],
-          ),
-        );
+        // Just pop since success is obvious, or show snackbar
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Transaction created')));
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        await showFDialog(
+        final colors = context.theme.colors;
+        final typo = context.theme.typography;
+        await showDialog(
           context: context,
-          builder: (ctx, style, animation) => FDialog(
-            animation: animation,
-            title: const Text('Failed to create'),
-            body: Text('$e'),
-            actions: [
-              FButton(
-                variant: FButtonVariant.outline,
-                onPress: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
+          builder: (ctx) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(22),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: colors.background,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.foreground,
+                    offset: const Offset(6, 6),
+                  ),
+                ],
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Failed to create',
+                    style: typo.lg.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$e',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: colors.mutedForeground,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'OK',
+                        style: typo.sm.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       }
@@ -455,7 +987,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
 }
 
 class _ParticipantEntry {
-  _ParticipantEntry({required this.userId, required this.displayName, this.isPayer = false});
+  _ParticipantEntry({
+    required this.userId,
+    required this.displayName,
+    this.isPayer = false,
+  });
   final String userId;
   final String displayName;
   final bool isPayer;
