@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/net_balance.dart';
-import '../../providers/auth_providers.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/user_providers.dart';
 import '../payments/create_payment_request_screen.dart';
@@ -21,24 +20,6 @@ class PersonalScreen extends ConsumerStatefulWidget {
 
 class _PersonalScreenState extends ConsumerState<PersonalScreen> {
   static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
-  final Map<String, String> _nameCache = {};
-
-  Future<String> _resolveName(String userId) async {
-    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
-    try {
-      final client = ref.read(supabaseClientProvider);
-      final p = await client
-          .from('profiles')
-          .select('display_name')
-          .eq('id', userId)
-          .maybeSingle();
-      final name = p?['display_name'] as String? ?? 'Unknown';
-      _nameCache[userId] = name;
-      return name;
-    } catch (_) {
-      return 'Unknown';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +45,11 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
       data: (balances) {
         final owe = balanceRepo.totalOwed(balances);
         final owed = balanceRepo.totalOwedToMe(balances);
+        final otherIds = balances
+            .map((b) => userId == b.userA ? b.userB : b.userA)
+            .toList();
+        ref.read(profileNameCacheProvider.notifier).prefetch(otherIds);
+        final names = ref.watch(profileNameCacheProvider);
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
@@ -195,7 +181,7 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
             else
               ...balances.map((b) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: _balanceTile(context, b, userId, colors, typo),
+                child: _balanceTile(context, b, userId, names, colors, typo),
               )),
           ],
         );
@@ -204,7 +190,7 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
   }
 
   Widget _balanceTile(
-      BuildContext context, NetBalance b, String? userId, FColors colors, FTypography typo) {
+      BuildContext context, NetBalance b, String? userId, Map<String, String> names, FColors colors, FTypography typo) {
     final bool owes;
     final String otherId;
     if (userId == b.userA) {
@@ -217,45 +203,39 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
     final amount = b.netAmount.abs();
     final color = owes ? colors.destructive : const Color(0xFF34D399);
     final label = owes ? 'You owe' : 'Owes you';
+    final name = names[otherId] ?? '...';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
-    return FutureBuilder<String>(
-      future: _resolveName(otherId),
-      builder: (context, snap) {
-        final name = snap.data ?? '...';
-        final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-
-        return FTile(
-          prefix: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(initial,
-                style: typo.xs
-                    .copyWith(fontWeight: FontWeight.w600, color: color)),
-          ),
-          title: Text(name,
-              style: typo.sm.copyWith(
-                  fontWeight: FontWeight.w500, color: colors.foreground)),
-          subtitle: Text(label,
-              style: typo.xs.copyWith(color: colors.mutedForeground)),
-          details: Text(_fmt.format(amount),
-              style:
-                  typo.sm.copyWith(fontWeight: FontWeight.w600, color: color)),
-          suffix: Icon(FIcons.chevronRight,
-              size: 14, color: colors.mutedForeground),
-          onPress: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => PersonDetailScreen(
-              otherUserId: otherId,
-              amount: amount,
-              iOwe: owes,
-            ),
-          )),
-        );
-      },
+    return FTile(
+      prefix: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Text(initial,
+            style: typo.xs
+                .copyWith(fontWeight: FontWeight.w600, color: color)),
+      ),
+      title: Text(name,
+          style: typo.sm.copyWith(
+              fontWeight: FontWeight.w500, color: colors.foreground)),
+      subtitle: Text(label,
+          style: typo.xs.copyWith(color: colors.mutedForeground)),
+      details: Text(_fmt.format(amount),
+          style:
+              typo.sm.copyWith(fontWeight: FontWeight.w600, color: color)),
+      suffix: Icon(FIcons.chevronRight,
+          size: 14, color: colors.mutedForeground),
+      onPress: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => PersonDetailScreen(
+          otherUserId: otherId,
+          amount: amount,
+          iOwe: owes,
+        ),
+      )),
     );
   }
 }
