@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/providers/connectivity_provider.dart';
 import '../core/services/local_notification_service.dart';
+import 'app_theme.dart';
 import 'providers/auth_providers.dart';
 import 'providers/theme_provider.dart';
 import 'screens/auth/onboarding_screen.dart';
@@ -20,13 +21,28 @@ class MyApp extends ConsumerWidget {
     final mode = ref.watch(themeModeProvider);
     final brightness = MediaQuery.platformBrightnessOf(context);
     final themeData = resolveTheme(mode, brightness);
+    
+    final lightThemeData = buildFTheme(isDark: false);
+    final darkThemeData = buildFTheme(isDark: true);
 
     return MaterialApp(
       title: 'Eda',
       debugShowCheckedModeBanner: false,
       navigatorKey: LocalNotificationService.navigatorKey,
-      theme: ThemeData.light(useMaterial3: true),
-      darkTheme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData.light(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: lightThemeData.colors.background,
+        textTheme: ThemeData.light(useMaterial3: true).textTheme.apply(
+              bodyColor: lightThemeData.colors.foreground,
+              displayColor: lightThemeData.colors.foreground,
+            ),
+      ),
+      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: darkThemeData.colors.background,
+        textTheme: ThemeData.dark(useMaterial3: true).textTheme.apply(
+              bodyColor: darkThemeData.colors.foreground,
+              displayColor: darkThemeData.colors.foreground,
+            ),
+      ),
       themeMode: switch (mode) {
         AppThemeMode.system => ThemeMode.system,
         AppThemeMode.light => ThemeMode.light,
