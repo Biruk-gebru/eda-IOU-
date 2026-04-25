@@ -4,6 +4,18 @@ EDA is a mobile app that makes it easy to track who owes whom in your friend gro
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/home.png" width="18%" alt="Home" />
+  <img src="screenshots/groups.png" width="18%" alt="Groups" />
+  <img src="screenshots/personal.png" width="18%" alt="Personal" />
+  <img src="screenshots/stats.png" width="18%" alt="Stats" />
+  <img src="screenshots/settings.png" width="18%" alt="Settings" />
+</p>
+
+---
+
 ## What you can do
 
 ### Home
