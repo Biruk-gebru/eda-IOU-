@@ -62,6 +62,30 @@ class PaymentRepository {
     return PaymentRequest.fromJson(data);
   }
 
+  /// Pending payment requests between the current user and [otherUserId].
+  Future<List<PaymentRequest>> getRequestsBetween(String otherUserId) async {
+    final me = _userId;
+    final data = await _client
+        .from('payment_requests')
+        .select()
+        .or('and(payer_id.eq.$me,receiver_id.eq.$otherUserId),'
+            'and(payer_id.eq.$otherUserId,receiver_id.eq.$me)')
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => PaymentRequest.fromJson(e)).toList();
+  }
+
+  /// All pending requests where the current user is the receiver (needs their approval).
+  Future<List<PaymentRequest>> getPendingApprovals() async {
+    final data = await _client
+        .from('payment_requests')
+        .select()
+        .eq('receiver_id', _userId)
+        .eq('status', 'pending')
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => PaymentRequest.fromJson(e)).toList();
+  }
+
   Future<List<PaymentRequest>> getGroupPaymentRequests(String groupId) async {
     final data = await _client
         .from('payment_requests')

@@ -6,9 +6,8 @@ import 'package:intl/intl.dart';
 
 import '../../../domain/entities/net_balance.dart';
 import '../../providers/balance_providers.dart';
+import '../../providers/payment_providers.dart';
 import '../../providers/user_providers.dart';
-import '../payments/create_payment_request_screen.dart';
-import '../settlements/settlement_screen.dart';
 import 'person_detail_screen.dart';
 
 class PersonalScreen extends ConsumerStatefulWidget {
@@ -147,125 +146,137 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
-
-                // ── Action buttons ────────────────────────────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const CreatePaymentRequestScreen(
-                                  mode: PaymentMode.iPaid)),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            color: colors.card,
-                            border: Border.all(color: colors.foreground, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: colors.foreground,
-                                offset: const Offset(2, 2),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(FIcons.check, size: 16, color: colors.foreground),
-                              const SizedBox(width: 6),
-                              Text(
-                                'I paid',
-                                style: typo.sm.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.foreground,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const CreatePaymentRequestScreen(
-                                  mode: PaymentMode.requestPayment)),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            color: colors.card,
-                            border: Border.all(color: colors.foreground, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: colors.foreground,
-                                offset: const Offset(2, 2),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(FIcons.handCoins, size: 16, color: colors.foreground),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Request',
-                                style: typo.sm.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.foreground,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettlementScreen()),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: colors.card,
-                      border: Border.all(color: colors.foreground, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.foreground,
-                          offset: const Offset(2, 2),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(FIcons.arrowRightLeft, size: 16, color: colors.foreground),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Settlements',
-                          style: typo.sm.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.foreground,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 32),
+
+                // ── Pending approvals ─────────────────────────────────────────────
+                Consumer(
+                  builder: (context, ref, _) {
+                    final approvalsAsync = ref.watch(pendingApprovalsProvider);
+                    final approvals = approvalsAsync.whenOrNull(data: (l) => l) ?? [];
+                    if (approvals.isEmpty) return const SizedBox.shrink();
+
+                    // Prefetch payer names
+                    final payerIds = approvals.map((r) => r.payerId).toList();
+                    ref.read(profileNameCacheProvider.notifier).prefetch(payerIds);
+                    final names = ref.watch(profileNameCacheProvider);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PENDING APPROVALS',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.6,
+                            color: colors.mutedForeground,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(color: colors.foreground, offset: const Offset(3, 3)),
+                            ],
+                          ),
+                          child: Column(
+                            children: List.generate(approvals.length, (i) {
+                              final req = approvals[i];
+                              final payerName = names[req.payerId] ?? '...';
+                              final initial = payerName.isNotEmpty
+                                  ? payerName[0].toUpperCase()
+                                  : '?';
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border: i == 0
+                                      ? null
+                                      : Border(
+                                          top: BorderSide(
+                                              color: colors.foreground,
+                                              width: 1.0)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: colors.foreground, width: 1.5),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        initial,
+                                        style: typo.sm.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: colors.foreground),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            payerName,
+                                            style: typo.sm.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                color: colors.foreground),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Paid ${_fmt.format(req.amount)}',
+                                            style: GoogleFonts.inter(
+                                                fontSize: 13,
+                                                color: colors.mutedForeground),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        await ref
+                                            .read(paymentRepositoryProvider)
+                                            .confirmPayment(req.id);
+                                        ref.invalidate(pendingApprovalsProvider);
+                                        ref.invalidate(balancesProvider);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: colors.primary,
+                                          border: Border.all(
+                                              color: colors.foreground, width: 1.5),
+                                          boxShadow: [
+                                            BoxShadow(
+                                                color: colors.foreground,
+                                                offset: const Offset(2, 2)),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          'Confirm',
+                                          style: typo.xs.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: colors.foreground,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  },
+                ),
 
                 // ── Net balances ──────────────────────────────────────────────────
                 Text(
