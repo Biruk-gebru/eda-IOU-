@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/payment_providers.dart';
 
@@ -59,54 +60,131 @@ class _PaymentConfirmationDialogState
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(22),
+      child: Container(
         padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colors.background,
+          border: Border.all(color: colors.foreground, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: colors.foreground,
+              offset: const Offset(6, 6),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Confirm Payment',
-              style: context.theme.typography.lg.copyWith(
+              style: typo.lg.copyWith(
+                fontSize: 22,
                 fontWeight: FontWeight.w600,
-                color: context.theme.colors.foreground,
+                color: colors.foreground,
               ),
             ),
             const SizedBox(height: 16),
-            FCard(
-              title: Text(widget.payerName),
-              subtitle: Text(
-                'ETB ${widget.amount.toStringAsFixed(2)}',
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground, width: 1.5),
               ),
-              child: const Text(
-                'Accept or reject within 48 hours.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.payerName,
+                    style: typo.lg.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ETB ${widget.amount.toStringAsFixed(2)}',
+                    style: typo.lg.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: colors.foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Accept or reject within 48 hours.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: colors.mutedForeground,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
-                  child: FButton(
-                    variant: FButtonVariant.outline,
-                    onPress: _isLoading ? null : _reject,
-                    child: const Text('Reject'),
+                  child: GestureDetector(
+                    onTap: _isLoading ? null : _reject,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Reject',
+                        style: typo.sm.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FButton(
-                    onPress: _isLoading ? null : _confirm,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                  child: GestureDetector(
+                    onTap: _isLoading ? null : _confirm,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        border: Border.all(color: colors.foreground, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.foreground,
+                            offset: const Offset(3, 3),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: _isLoading
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colors.foreground,
+                              ),
+                            )
+                          : Text(
+                              'Confirm',
+                              style: typo.sm.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground,
+                              ),
                             ),
-                          )
-                        : const Text('Confirm'),
+                    ),
                   ),
                 ),
               ],
