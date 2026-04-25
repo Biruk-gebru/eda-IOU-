@@ -317,25 +317,28 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
+    _isSubmitting = true; // guard synchronously before any await or setState
+
     setState(() { _descError = null; _amountError = null; });
 
     final description = _descriptionController.text.trim();
     final amountText = _amountController.text.trim();
 
     if (description.isEmpty) {
-      setState(() => _descError = 'Description is required');
+      setState(() { _isSubmitting = false; _descError = 'Description is required'; });
       return;
     }
 
     final totalAmount = double.tryParse(amountText);
     if (totalAmount == null || totalAmount <= 0) {
-      setState(() => _amountError = 'Enter a valid amount');
+      setState(() { _isSubmitting = false; _amountError = 'Enter a valid amount'; });
       return;
     }
 
     final client = ref.read(supabaseClientProvider);
     final currentUserId = client.auth.currentUser?.id;
-    if (currentUserId == null) return;
+    if (currentUserId == null) { setState(() => _isSubmitting = false); return; }
 
     // Only include non-payer participants (creator pays, others owe)
     final others = _participants
@@ -343,9 +346,12 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
         .toList();
 
     if (others.isEmpty) {
+      setState(() => _isSubmitting = false);
       _snack('Add at least one other participant');
       return;
     }
+
+    setState(() {}); // trigger visual spinner now that we know we'll submit
 
     final maps = <Map<String, dynamic>>[];
 
@@ -387,7 +393,6 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
       }
     }
 
-    setState(() => _isSubmitting = true);
     try {
       await ref.read(transactionRepositoryProvider).createTransaction(
             groupId: _selectedGroup?.id,
