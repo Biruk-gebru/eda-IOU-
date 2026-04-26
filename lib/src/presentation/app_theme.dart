@@ -13,7 +13,6 @@ const _lightInk = Color(0xFF16140F);
 const _lightCard = Color(0xFFFBFAF3);
 const _lightAccent = Color(0xFFD9A441);
 const _lightMuted = Color(0xFF7A7363);
-const _lightGood = Color(0xFF1F6A3A);
 const _lightBad = Color(0xFF9A2A1F);
 
 // ─── EDA Neo-Brutalist Theme (Dark) ──────────────────────────────────────────
@@ -27,7 +26,6 @@ const _darkInk = Color(0xFFE8E5D8);
 const _darkCard = Color(0xFF2E2C2A);
 const _darkAccent = Color(0xFFD9A441);
 const _darkMuted = Color(0xFF968E7E);
-const _darkGood = Color(0xFF2D8D4E);
 const _darkBad = Color(0xFFC4483B);
 
 /// Returns a [FThemeData] with the EDA monochromatic palette and Google Fonts.

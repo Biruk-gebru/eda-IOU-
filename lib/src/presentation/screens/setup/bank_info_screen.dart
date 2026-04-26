@@ -17,7 +17,6 @@ class _BankDef {
   final String hint;
   final int minLen;
   final int maxLen;
-  final bool digitsOnly;
   final String? assetPath;
 
   const _BankDef({
@@ -27,13 +26,12 @@ class _BankDef {
     required this.hint,
     required this.minLen,
     required this.maxLen,
-    this.digitsOnly = true,
     this.assetPath,
   });
 
   String? validate(String value) {
     if (value.isEmpty) return '$label is required';
-    if (digitsOnly && !RegExp(r'^\d+$').hasMatch(value)) {
+    if (!RegExp(r'^\d+$').hasMatch(value)) {
       return '$label must be digits only';
     }
     if (value.length < minLen) return '$label must be at least $minLen characters';
@@ -329,9 +327,9 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
                       TextField(
                         controller: _identifierController,
                         enabled: !_isLoading,
-                        keyboardType: _selectedBank!.digitsOnly ? TextInputType.number : TextInputType.text,
+                        keyboardType: TextInputType.number,
                         inputFormatters: [
-                          if (_selectedBank!.digitsOnly) FilteringTextInputFormatter.digitsOnly,
+                          FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(_selectedBank!.maxLen),
                         ],
                         style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
@@ -355,7 +353,7 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${_selectedBank!.minLen}-${_selectedBank!.maxLen} ${_selectedBank!.digitsOnly ? "digits" : "characters"}',
+                        '${_selectedBank!.minLen}-${_selectedBank!.maxLen} digits',
                         style: GoogleFonts.inter(fontSize: 12, color: colors.mutedForeground),
                       ),
                     ],
