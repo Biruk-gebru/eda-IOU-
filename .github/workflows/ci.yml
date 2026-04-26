@@ -22,6 +22,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Create stub .env for tests
+        run: |
+          echo "SUPABASE_URL=https://stub.supabase.co" >> .env
+          echo "SUPABASE_ANON_KEY=stub-anon-key" >> .env
+          echo "SUPABASE_REDIRECT_URL=com.example.eda://login-callback/" >> .env
+
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
