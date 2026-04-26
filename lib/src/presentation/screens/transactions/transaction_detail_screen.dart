@@ -527,7 +527,6 @@ class _TransactionDetailScreenState
     return Column(
       children: List.generate(steps.length, (i) {
         final (label, done) = steps[i];
-        final isLast = i == steps.length - 1;
 
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
