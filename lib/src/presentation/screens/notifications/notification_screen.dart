@@ -67,6 +67,7 @@ class NotificationScreen extends ConsumerWidget {
                       onTap: () async {
                         final repo = ref.read(notificationRepositoryProvider);
                         await repo.markAllAsRead();
+                        ref.invalidate(notificationsProvider);
                       },
                       child: Container(
                         width: 36,
@@ -155,6 +156,7 @@ class NotificationScreen extends ConsumerWidget {
                                 onTap: () async {
                                   final repo = ref.read(notificationRepositoryProvider);
                                   await repo.markAllAsRead();
+                                  ref.invalidate(notificationsProvider);
                                 },
                                 child: Text(
                                   'Mark all as read',
@@ -206,6 +208,7 @@ class NotificationScreen extends ConsumerWidget {
       onTap: () async {
         if (!notification.read) {
           await ref.read(notificationRepositoryProvider).markAsRead(notification.id);
+          ref.invalidate(notificationsProvider);
         }
         if (!context.mounted) return;
         _navigateTo(context, ref, notification.type);
