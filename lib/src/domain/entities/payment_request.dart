@@ -11,6 +11,9 @@ class PaymentRequest {
   final DateTime? createdAt;
   final DateTime? confirmedAt;
   final DateTime? timeoutAt;
+  final String? smsReference;
+  final String? payerBankType;
+  final String? receiverBankType;
 
   const PaymentRequest({
     required this.id,
@@ -25,6 +28,9 @@ class PaymentRequest {
     this.createdAt,
     this.confirmedAt,
     this.timeoutAt,
+    this.smsReference,
+    this.payerBankType,
+    this.receiverBankType,
   });
 
   factory PaymentRequest.fromJson(Map<String, dynamic> json) => PaymentRequest(
@@ -46,6 +52,9 @@ class PaymentRequest {
         timeoutAt: json['timeout_at'] != null
             ? DateTime.parse(json['timeout_at'] as String)
             : null,
+        smsReference: json['sms_reference'] as String?,
+        payerBankType: json['payer_bank_type'] as String?,
+        receiverBankType: json['receiver_bank_type'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -61,5 +70,8 @@ class PaymentRequest {
         'created_at': createdAt?.toIso8601String(),
         'confirmed_at': confirmedAt?.toIso8601String(),
         'timeout_at': timeoutAt?.toIso8601String(),
+        'sms_reference': smsReference,
+        'payer_bank_type': payerBankType,
+        'receiver_bank_type': receiverBankType,
       };
 }
