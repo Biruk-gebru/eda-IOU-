@@ -150,6 +150,20 @@ class GroupRepository {
         .eq('user_id', _userId!);
   }
 
+  /// Streams all group_members rows where the current user has a pending
+  /// invitation. Group name lookup is handled at the provider layer.
+  Stream<List<GroupMember>> watchPendingInvitations() {
+    return _client
+        .from('group_members')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', _userId!)
+        .map((data) => (data as List)
+            .where((e) => e['status'] == 'pending')
+            .map((e) => GroupMember.fromJson(e))
+            .toList())
+        .handleError((_) {});
+  }
+
   /// Returns all groups where the current user has a pending invitation,
   /// including the group name via PostgREST FK embedding.
   Future<List<({GroupMember member, String groupName})>>
