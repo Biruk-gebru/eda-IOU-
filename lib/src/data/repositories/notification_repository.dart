@@ -19,13 +19,14 @@ class NotificationRepository {
   }
 
   Stream<List<AppNotification>> watchNotifications() {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return Stream.value([]);
     return _client
         .from('notifications')
         .stream(primaryKey: ['id'])
-        .eq('user_id', _userId)
+        .eq('user_id', userId)
         .order('created_at', ascending: false)
-        .map(
-            (data) => data.map((e) => AppNotification.fromJson(e)).toList());
+        .map((data) => data.map((e) => AppNotification.fromJson(e)).toList());
   }
 
   Future<void> markAsRead(String notificationId) async {
