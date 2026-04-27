@@ -68,7 +68,7 @@ class _NeoButtonState extends State<NeoButton> {
           color: widget.backgroundColor ?? Colors.transparent,
           border: Border.all(color: widget.borderColor, width: widget.borderWidth),
           boxShadow: [
-            if (!_isPressed)
+            if (!_isPressed && widget.shadowOffset > 0)
               BoxShadow(
                 color: widget.borderColor,
                 offset: Offset(widget.shadowOffset, widget.shadowOffset),
