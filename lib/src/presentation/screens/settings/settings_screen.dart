@@ -9,6 +9,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/user_providers.dart';
 import '../profile/edit_profile_screen.dart';
 import '../setup/bank_info_screen.dart';
+import '../../widgets/neo_button.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -258,61 +259,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // ── Danger zone ─────────────────────────────────────────────────
             _sectionLabel('DANGER ZONE', colors, typo),
             const SizedBox(height: 12),
-            GestureDetector(
+            NeoButton(
               onTap: () => _confirmSignOut(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  border: Border.all(color: colors.foreground, width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FIcons.logOut, size: 18, color: colors.foreground),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Sign out',
-                      style: typo.sm.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                      ),
+              backgroundColor: Colors.transparent,
+              borderColor: colors.foreground,
+              shadowOffset: 0.0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(FIcons.logOut, size: 18, color: colors.foreground),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Sign out',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
-            GestureDetector(
+            NeoButton(
               onTap: () => _confirmDeleteAccount(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: colors.destructive,
-                  border: Border.all(color: colors.foreground, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
+              backgroundColor: colors.destructive,
+              borderColor: colors.foreground,
+              shadowOffset: 3.0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(FIcons.trash2, size: 18, color: colors.foreground),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Delete account',
+                    style: typo.sm.copyWith(
+                      fontWeight: FontWeight.w600,
                       color: colors.foreground,
-                      offset: const Offset(3, 3),
                     ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FIcons.trash2, size: 18, color: colors.foreground),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Delete account',
-                      style: typo.sm.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -510,7 +497,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-              GestureDetector(
+              NeoButton(
                 onTap: () async {
                   Navigator.of(ctx).pop();
                   try {
@@ -522,44 +509,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                   }
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: colors.destructive,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.foreground,
-                        offset: const Offset(3, 3),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Sign out',
-                    style: typo.sm.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
-                    ),
+                backgroundColor: colors.destructive,
+                borderColor: colors.foreground,
+                shadowOffset: 3.0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text(
+                  'Sign out',
+                  style: typo.sm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              GestureDetector(
+              NeoButton(
                 onTap: () => Navigator.of(ctx).pop(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Cancel',
-                    style: typo.sm.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
-                    ),
+                backgroundColor: Colors.transparent,
+                borderColor: colors.foreground,
+                shadowOffset: 0.0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text(
+                  'Cancel',
+                  style: typo.sm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
                   ),
                 ),
               ),
@@ -612,7 +585,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-              GestureDetector(
+              NeoButton(
                 onTap: () async {
                   Navigator.of(ctx).pop();
                   try {
@@ -624,44 +597,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                   }
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: colors.destructive,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.foreground,
-                        offset: const Offset(3, 3),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Delete permanently',
-                    style: typo.sm.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
-                    ),
+                backgroundColor: colors.destructive,
+                borderColor: colors.foreground,
+                shadowOffset: 3.0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text(
+                  'Delete permanently',
+                  style: typo.sm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              GestureDetector(
+              NeoButton(
                 onTap: () => Navigator.of(ctx).pop(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Cancel',
-                    style: typo.sm.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
-                    ),
+                backgroundColor: Colors.transparent,
+                borderColor: colors.foreground,
+                shadowOffset: 0.0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text(
+                  'Cancel',
+                  style: typo.sm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
                   ),
                 ),
               ),

@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../widgets/neo_button.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -201,115 +202,82 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               const SizedBox(height: 36),
 
               // ── Submit ────────────────────────────────────────────────────
-              GestureDetector(
+              NeoButton(
                 onTap: _isEmailLoading ? null : _handleEmailAction,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    color: colors.primary,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.foreground,
-                        offset: const Offset(4, 4),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: _isEmailLoading
-                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(_isSignUp ? FIcons.userPlus : FIcons.logIn, size: 20, color: colors.foreground),
-                            const SizedBox(width: 10),
-                            Text(
-                              _isSignUp ? 'Create account' : 'Sign in',
-                              style: typo.lg.copyWith(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: colors.foreground,
-                              ),
+                backgroundColor: colors.primary,
+                borderColor: colors.foreground,
+                shadowOffset: 4.0,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: _isEmailLoading
+                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(_isSignUp ? FIcons.userPlus : FIcons.logIn, size: 20, color: colors.foreground),
+                          const SizedBox(width: 10),
+                          Text(
+                            _isSignUp ? 'Create account' : 'Sign in',
+                            style: typo.lg.copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
                             ),
-                          ],
-                        ),
-                ),
+                          ),
+                        ],
+                      ),
               ),
 
               const SizedBox(height: 16),
 
               // ── Google ────────────────────────────────────────────────────
-              GestureDetector(
+              NeoButton(
                 onTap: _isGoogleLoading ? null : _handleGoogleSignIn,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.foreground,
-                        offset: const Offset(4, 4),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: _isGoogleLoading
-                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(FIcons.globe, size: 20, color: colors.foreground),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Continue with Google',
-                              style: typo.lg.copyWith(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: colors.foreground,
-                              ),
+                backgroundColor: colors.card,
+                borderColor: colors.foreground,
+                shadowOffset: 4.0,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: _isGoogleLoading
+                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(FIcons.globe, size: 20, color: colors.foreground),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Continue with Google',
+                            style: typo.lg.copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: colors.foreground,
                             ),
-                          ],
-                        ),
-                ),
+                          ),
+                        ],
+                      ),
               ),
 
               const SizedBox(height: 16),
 
               // ── Apple ─────────────────────────────────────────────────────
-              GestureDetector(
+              NeoButton(
                 onTap: () => _showComingSoon('Apple Sign-In'),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
+                backgroundColor: colors.card,
+                borderColor: colors.foreground,
+                shadowOffset: 4.0,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FIcons.apple, size: 20, color: colors.foreground),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Continue with Apple',
+                      style: typo.lg.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                         color: colors.foreground,
-                        offset: const Offset(4, 4),
                       ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(FIcons.apple, size: 20, color: colors.foreground),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Continue with Apple',
-                        style: typo.lg.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: colors.foreground,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
 
