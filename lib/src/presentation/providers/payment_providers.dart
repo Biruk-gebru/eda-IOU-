@@ -25,6 +25,6 @@ final pendingRequestsBetweenProvider =
   return ref.watch(paymentRepositoryProvider).getRequestsBetween(otherUserId);
 });
 
-final pendingApprovalsProvider = FutureProvider<List<PaymentRequest>>((ref) async {
-  return ref.watch(paymentRepositoryProvider).getPendingApprovals();
+final pendingApprovalsProvider = StreamProvider<List<PaymentRequest>>((ref) {
+  return ref.watch(paymentRepositoryProvider).watchPendingApprovals();
 });

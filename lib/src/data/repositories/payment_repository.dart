@@ -22,6 +22,18 @@ class PaymentRepository {
     }
   }
 
+  Stream<List<PaymentRequest>> watchPendingApprovals() {
+    return _client
+        .from('payment_requests')
+        .stream(primaryKey: ['id'])
+        .eq('receiver_id', _userId)
+        .order('created_at', ascending: false)
+        .map((data) => data
+            .where((e) => e['status'] == 'pending')
+            .map((e) => PaymentRequest.fromJson(e))
+            .toList());
+  }
+
   Future<List<PaymentRequest>> getPaymentRequests() async {
     // Expire timed-out payment requests before fetching
     await checkAndExpirePayments();
