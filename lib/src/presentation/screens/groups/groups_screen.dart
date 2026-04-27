@@ -15,6 +15,15 @@ class GroupsScreen extends ConsumerStatefulWidget {
 }
 
 class _GroupsScreenState extends ConsumerState<GroupsScreen> {
+  Future<void> _onRefresh() async {
+    ref.invalidate(groupListProvider);
+    ref.invalidate(pendingInvitationsProvider);
+    await Future.wait([
+      ref.read(groupListProvider.future),
+      ref.read(pendingInvitationsProvider.future),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
@@ -80,7 +89,9 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
 
               // ── Content ────────────────────────────────────────────────────
               Expanded(
-                child: groupsAsync.when(
+                child: RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  child: groupsAsync.when(
                   loading: () => const Center(
                       child: CircularProgressIndicator.adaptive()),
                   error: (error, _) => Center(
@@ -117,6 +128,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                   ),
                   data: (groups) {
                     return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 24),
                       children: [
                         // Stat cards
@@ -263,6 +275,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
                       ],
                     );
                   },
+                ),
                 ),
               ),
             ],
