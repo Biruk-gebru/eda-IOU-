@@ -46,7 +46,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: colors.background, // Paper
       body: Stack(
         children: [
-          ListView(
+          RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.zero,
             children: [
               // ── Header ─────────────────────────────────────────────────────────
@@ -222,6 +225,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               const SizedBox(height: 100), // Padding for CTA
             ],
+          ),
           ),
 
           // ── Pinned CTA ─────────────────────────────────────────────────────
@@ -653,6 +657,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _onRefresh() async {
+    ref.invalidate(balancesProvider);
+    ref.invalidate(transactionListProvider);
+    await Future.wait([
+      ref.read(balancesProvider.future),
+      ref.read(transactionListProvider.future),
+    ]);
   }
 
   void _open(BuildContext context, Widget screen) {
