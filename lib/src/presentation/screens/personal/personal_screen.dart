@@ -19,6 +19,7 @@ class PersonalScreen extends ConsumerStatefulWidget {
 
 class _PersonalScreenState extends ConsumerState<PersonalScreen> {
   static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
+  final _confirming = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -273,13 +274,25 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                                       ),
                                     ),
                                     GestureDetector(
-                                      onTap: () async {
-                                        await ref
-                                            .read(paymentRepositoryProvider)
-                                            .confirmPayment(req.id);
-                                        ref.invalidate(pendingApprovalsProvider);
-                                        ref.invalidate(balancesProvider);
-                                      },
+                                      onTap: _confirming.contains(req.id)
+                                          ? null
+                                          : () async {
+                                              setState(() => _confirming.add(req.id));
+                                              final messenger = ScaffoldMessenger.of(context);
+                                              try {
+                                                await ref
+                                                    .read(paymentRepositoryProvider)
+                                                    .confirmPayment(req.id);
+                                                ref.invalidate(pendingApprovalsProvider);
+                                                ref.invalidate(balancesProvider);
+                                              } catch (e) {
+                                                messenger.showSnackBar(
+                                                  SnackBar(content: Text('Error: $e')),
+                                                );
+                                              } finally {
+                                                if (mounted) setState(() => _confirming.remove(req.id));
+                                              }
+                                            },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 14, vertical: 8),
@@ -293,13 +306,20 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                                                 offset: const Offset(2, 2)),
                                           ],
                                         ),
-                                        child: Text(
-                                          'Confirm',
-                                          style: typo.xs.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: colors.foreground,
-                                          ),
-                                        ),
+                                        child: _confirming.contains(req.id)
+                                            ? SizedBox(
+                                                width: 14,
+                                                height: 14,
+                                                child: CircularProgressIndicator(
+                                                    color: colors.foreground, strokeWidth: 2),
+                                              )
+                                            : Text(
+                                                'Confirm',
+                                                style: typo.xs.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: colors.foreground,
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ],
