@@ -32,6 +32,9 @@ dependencies:
   # Configuration
   flutter_dotenv: ^5.2.1
 
+  # SMS reading (Android)
+  another_telephony: ^0.3.0
+
   # Notifications
   flutter_local_notifications: ^18.0.0
 
