@@ -393,42 +393,46 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
 
                     const SizedBox(height: 48),
 
-                    const SizedBox(height: 48),
-
-                    NeoButton(
-                      onTap: _isLoading || _selectedBank == null ? null : _submit,
-                      backgroundColor: colors.primary,
-                      borderColor: colors.foreground,
-                      child: _isLoading
-                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: colors.primaryForeground))
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(FIcons.check, size: 20, color: colors.primaryForeground),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Save',
-                                  style: typo.lg.copyWith(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: colors.primaryForeground,
+                    SizedBox(
+                      width: double.infinity,
+                      child: NeoButton(
+                        onTap: _isLoading || _selectedBank == null ? null : _submit,
+                        backgroundColor: colors.primary,
+                        borderColor: colors.foreground,
+                        child: _isLoading
+                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: colors.primaryForeground))
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(FIcons.check, size: 20, color: colors.primaryForeground),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Save',
+                                    style: typo.lg.copyWith(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.primaryForeground,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                      ),
                     ),
                     const SizedBox(height: 20),
-                    NeoButton(
-                      onTap: _isLoading ? null : _skip,
-                      backgroundColor: Colors.transparent,
-                      borderColor: colors.foreground,
-                      shadowOffset: 2.0,
-                      child: Text(
-                        'Skip for now',
-                        style: typo.lg.copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: colors.foreground,
+                    SizedBox(
+                      width: double.infinity,
+                      child: NeoButton(
+                        onTap: _isLoading ? null : _skip,
+                        backgroundColor: Colors.transparent,
+                        borderColor: colors.foreground,
+                        shadowOffset: 0.0,
+                        child: Text(
+                          'Skip for now',
+                          style: typo.lg.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground,
+                          ),
                         ),
                       ),
                     ),
