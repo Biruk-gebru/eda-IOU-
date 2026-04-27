@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../app.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/user_providers.dart';
+import '../../widgets/neo_button.dart';
 
 /// Ethiopian bank definitions with validation rules.
 class _BankDef {
@@ -392,57 +393,42 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
 
                     const SizedBox(height: 48),
 
-                    GestureDetector(
+                    const SizedBox(height: 48),
+
+                    NeoButton(
                       onTap: _isLoading || _selectedBank == null ? null : _submit,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        decoration: BoxDecoration(
-                          color: colors.primary,
-                          border: Border.all(color: colors.foreground, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors.foreground,
-                              offset: const Offset(4, 4),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: _isLoading
-                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: colors.foreground))
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(FIcons.check, size: 20, color: colors.foreground),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Save',
-                                    style: typo.lg.copyWith(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: colors.foreground,
-                                    ),
+                      backgroundColor: colors.primary,
+                      borderColor: colors.foreground,
+                      child: _isLoading
+                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: colors.primaryForeground))
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(FIcons.check, size: 20, color: colors.primaryForeground),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Save',
+                                  style: typo.lg.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.primaryForeground,
                                   ),
-                                ],
-                              ),
-                      ),
+                                ),
+                              ],
+                            ),
                     ),
                     const SizedBox(height: 20),
-                    GestureDetector(
+                    NeoButton(
                       onTap: _isLoading ? null : _skip,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          border: Border.all(color: colors.foreground, width: 1.5),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Skip for now',
-                          style: typo.lg.copyWith(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: colors.foreground,
-                          ),
+                      backgroundColor: Colors.transparent,
+                      borderColor: colors.foreground,
+                      shadowOffset: 2.0,
+                      child: Text(
+                        'Skip for now',
+                        style: typo.lg.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
                         ),
                       ),
                     ),
@@ -466,13 +452,14 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
                 _identifierController.clear();
                 _error = null;
               }),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         width: 100,
         height: 110,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? colors.primary.withValues(alpha: 0.1) : colors.card,
-          border: Border.all(color: colors.foreground, width: 1.5),
+          color: selected ? colors.primary : colors.card,
+          border: Border.all(color: colors.foreground, width: selected ? 2.0 : 1.5),
           boxShadow: selected
               ? [
                   BoxShadow(
@@ -505,7 +492,7 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: typo.sm.copyWith(
-                color: colors.foreground,
+                color: selected ? colors.primaryForeground : colors.foreground,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
