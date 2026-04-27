@@ -108,10 +108,18 @@ class PaymentRepository {
   }
 
   Future<void> confirmPayment(String paymentRequestId) async {
-    await _client.from('payment_requests').update({
-      'status': 'confirmed',
-      'confirmed_at': DateTime.now().toIso8601String(),
-    }).eq('id', paymentRequestId);
+    // Only update if still pending — prevents double-application if called twice.
+    final updated = await _client
+        .from('payment_requests')
+        .update({
+          'status': 'confirmed',
+          'confirmed_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', paymentRequestId)
+        .eq('status', 'pending')
+        .select('id');
+
+    if ((updated as List).isEmpty) return;
 
     await _client.rpc('apply_payment', params: {
       'p_payment_request_id': paymentRequestId,
