@@ -61,6 +61,9 @@ class PaymentRepository {
     String? groupId,
     String? method,
     String? note,
+    String? smsReference,
+    String? payerBankType,
+    String? receiverBankType,
   }) async {
     final data = await _client.from('payment_requests').insert({
       'payer_id': payerId ?? _userId,
@@ -70,6 +73,9 @@ class PaymentRepository {
       'group_id': groupId,
       'method': method,
       'note': note,
+      'sms_reference': smsReference,
+      'payer_bank_type': payerBankType,
+      'receiver_bank_type': receiverBankType,
     }).select().single();
     return PaymentRequest.fromJson(data);
   }
