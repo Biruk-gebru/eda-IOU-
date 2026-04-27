@@ -13,6 +13,7 @@ import '../notifications/notification_screen.dart';
 import '../personal/person_detail_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
+import '../../widgets/neo_button.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -247,37 +248,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   stops: const [0.0, 0.4, 1.0],
                 ),
               ),
-              child: GestureDetector(
+              child: NeoButton(
                 onTap: () => _open(context, const CreateTransactionScreen()),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: colors.primary,
-                    border: Border.all(color: colors.foreground, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
+                backgroundColor: colors.primary,
+                borderColor: colors.foreground,
+                shadowOffset: 4.0,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add, color: colors.foreground, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Start a new IOU',
+                      style: typo.lg.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         color: colors.foreground,
-                        offset: const Offset(4, 4),
                       ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add, color: colors.foreground, size: 20),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Start a new IOU',
-                        style: typo.lg.copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: colors.foreground,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
