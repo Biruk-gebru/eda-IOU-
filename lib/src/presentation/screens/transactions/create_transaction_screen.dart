@@ -9,6 +9,7 @@ import '../../providers/group_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../../core/utils/split_calculator.dart';
 import '../../../domain/entities/group.dart';
+import '../../widgets/neo_button.dart';
 
 class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
@@ -689,39 +690,28 @@ class _CreateTransactionScreenState
                     top: BorderSide(color: colors.foreground, width: 1.5),
                   ),
                 ),
-                child: GestureDetector(
+                child: NeoButton(
                   onTap: _isSubmitting ? null : _submit,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: colors.primary, // Accent
-                      border: Border.all(color: colors.foreground, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.foreground,
-                          offset: const Offset(4, 4),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: _isSubmitting
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: colors.foreground,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            'Send IOU · ETB ${_amountController.text.isNotEmpty ? _amountController.text : "0.00"}',
-                            style: typo.lg.copyWith(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: colors.foreground,
-                            ),
+                  backgroundColor: colors.primary,
+                  borderColor: colors.foreground,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: _isSubmitting
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: colors.primaryForeground,
+                            strokeWidth: 2,
                           ),
-                  ),
+                        )
+                      : Text(
+                          'Send IOU · ETB ${_amountController.text.isNotEmpty ? _amountController.text : "0.00"}',
+                          style: typo.lg.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colors.primaryForeground,
+                          ),
+                        ),
                 ),
               ),
             ),
