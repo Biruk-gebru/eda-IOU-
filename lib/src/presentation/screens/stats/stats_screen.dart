@@ -23,7 +23,17 @@ class StatsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colors.background, // Paper
       body: SafeArea(
-        child: ListView(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(balancesProvider);
+            ref.invalidate(transactionListProvider);
+            await Future.wait([
+              ref.read(balancesProvider.future),
+              ref.read(transactionListProvider.future),
+            ]);
+          },
+          child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
           children: [
             Text(
@@ -56,6 +66,7 @@ class StatsScreen extends ConsumerWidget {
             // Monthly bars
             _monthlyBars(txAsync, colors, typo),
           ],
+          ),
         ),
       ),
     );
