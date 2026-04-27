@@ -33,6 +33,21 @@ class _SmsPattern {
 class SmsParserService {
   static final _telephony = Telephony.instance;
 
+  // Zero-width / invisible Unicode characters that silently break keyword
+  // matching even when text looks correct on screen.
+  // ​ ZWSP, ‌ ZWNJ, ‍ ZWJ, ﻿ BOM/ZWNBSP,
+  // ­ soft-hyphen, ⁠ word-joiner, ⁡-⁤ invisible operators
+  static final _invisibleChars = RegExp(
+    '[​‌‍﻿­⁠⁡⁢⁣⁤]',
+  );
+
+  // Non-breaking / narrow space variants — normalize to regular ASCII space.
+  //   NBSP,   narrow NBSP,   figure space,
+  //   punctuation space,   thin space
+  static final _nbspChars = RegExp(
+    '[     ]',
+  );
+
   static final _patterns = <_SmsPattern>[
     // ── CBE ───────────────────────────────────────────────────────────────────
     _SmsPattern(
@@ -250,7 +265,7 @@ class SmsParserService {
       if (date < cutoff) break; // sorted DESC, once too old stop
 
       final address = sms.address ?? '';
-      final body = sms.body ?? '';
+      final body = _sanitizeBody(sms.body ?? '');
 
       final relevantPatterns = patterns.where(
         (p) => p.senderCodes.any(
@@ -263,7 +278,9 @@ class SmsParserService {
         if (match == null) continue;
 
         final rawAmount = _cleanNumber(
-          match.groupNames.contains('amount') ? match.namedGroup('amount') : null,
+          match.groupNames.contains('amount')
+              ? match.namedGroup('amount')
+              : null,
         );
         final parsedAmount = double.tryParse(rawAmount ?? '');
         if (parsedAmount == null) continue;
@@ -286,6 +303,20 @@ class SmsParserService {
       }
     }
     return null;
+  }
+
+  // Strips hidden characters from bank SMS bodies before regex matching.
+  // These characters are invisible on screen but break keyword matching.
+  static String _sanitizeBody(String text) {
+    // 1. Remove zero-width spaces, BOM, soft hyphen, and invisible operators
+    String s = text.replaceAll(_invisibleChars, '');
+    // 2. Normalize non-breaking / narrow spaces to regular ASCII space
+    s = s.replaceAll(_nbspChars, ' ');
+    // 3. Normalize \r\n and lone \r to \n (dotAll handles \n fine)
+    s = s.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    // 4. Collapse runs of spaces and tabs to a single space
+    s = s.replaceAll(RegExp(r'[ \t]+'), ' ');
+    return s.trim();
   }
 
   static String? _cleanNumber(String? input) {
