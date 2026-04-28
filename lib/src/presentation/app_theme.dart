@@ -8,25 +8,25 @@ import 'package:google_fonts/google_fonts.dart';
 // Card   : #FBFAF3 (Slightly lighter surface)
 // Accent : #D9A441 (Ochre)
 // ─────────────────────────────────────────────────────────────────────────────
-const _lightPaper = Color(0xFFEFECDF);
-const _lightInk = Color(0xFF16140F);
-const _lightCard = Color(0xFFFBFAF3);
-const _lightAccent = Color(0xFFD9A441);
-const _lightMuted = Color(0xFF7A7363);
-const _lightBad = Color(0xFF9A2A1F);
+const _lightPaper = Color(0xFFF2EFEB);
+const _lightInk = Color(0xFF161414);
+const _lightCard = Color(0xFFFFFFFF);
+const _lightAccent = Color(0xFF00D09E); // Bright Teal
+const _lightMuted = Color(0xFF8D8A80);
+const _lightBad = Color(0xFFE24C4B);
 
 // ─── EDA Neo-Brutalist Theme (Dark) ──────────────────────────────────────────
-// Paper  : #242220 (Warm deep charcoal)
-// Ink    : #E8E5D8 (Off-white warm)
-// Card   : #2E2C2A (Slightly lighter than paper)
-// Accent : #D9A441 (Same ochre)
+// Paper  : #1A1A1A
+// Ink    : #F2EFEB
+// Card   : #262626
+// Accent : #00D09E
 // ─────────────────────────────────────────────────────────────────────────────
-const _darkPaper = Color(0xFF242220);
-const _darkInk = Color(0xFFE8E5D8);
-const _darkCard = Color(0xFF2E2C2A);
-const _darkAccent = Color(0xFFD9A441);
-const _darkMuted = Color(0xFF968E7E);
-const _darkBad = Color(0xFFC4483B);
+const _darkPaper = Color(0xFF1A1A1A);
+const _darkInk = Color(0xFFF2EFEB);
+const _darkCard = Color(0xFF262626);
+const _darkAccent = Color(0xFF00D09E);
+const _darkMuted = Color(0xFFA19E94);
+const _darkBad = Color(0xFFE24C4B);
 
 /// Returns a [FThemeData] with the EDA monochromatic palette and Google Fonts.
 FThemeData buildFTheme({required bool isDark}) {
