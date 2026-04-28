@@ -14,7 +14,8 @@ import '../personal/person_detail_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
 import '../../widgets/neo_button.dart';
-
+import '../../widgets/skeleton.dart';
+import '../../widgets/sparkline.dart';
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -286,44 +287,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AspectRatio(
-          aspectRatio: 1,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: fill,
-              border: Border.all(color: colors.foreground, width: 1.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: colors.foreground, size: 22),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: context.theme.typography.lg.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                      ),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: NeoButton(
+          onTap: onTap,
+          backgroundColor: fill,
+          borderColor: colors.foreground,
+          shadowOffset: 2.0,
+          padding: const EdgeInsets.all(12),
+          alignment: Alignment.topLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: colors.foreground, size: 22),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: context.theme.typography.lg.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sub,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: const Color(0xFF3A352A), // Ink soft
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    sub,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: const Color(0xFF3A352A), // Ink soft
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -342,7 +341,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           border: Border.all(color: colors.foreground, width: 1.5),
         ),
         child: async.when(
-          loading: () => const Center(child: FCircularProgress()),
+          loading: () => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Skeleton(width: 120, height: 12, color: colors.background.withOpacity(0.2)),
+              const SizedBox(height: 14),
+              Skeleton(width: 200, height: 44, color: colors.background.withOpacity(0.2)),
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(child: Skeleton(width: double.infinity, height: 40, color: colors.background.withOpacity(0.2))),
+                  const SizedBox(width: 18),
+                  Expanded(child: Skeleton(width: double.infinity, height: 40, color: colors.background.withOpacity(0.2))),
+                ],
+              ),
+            ],
+          ),
           error: (_, __) => Text(
             'Error loading balances',
             style: typo.sm.copyWith(color: colors.destructive),
@@ -356,25 +370,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'NET BALANCE · APRIL',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.6,
-                    color: const Color(0xFFA8A294),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _fmtSigned(net),
-                  style: typo.xl4.copyWith(
-                    fontSize: 44,
-                    fontWeight: FontWeight.w600,
-                    color: colors.background, // Paper
-                    height: 1.0,
-                    letterSpacing: -0.88,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NET BALANCE · APRIL',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.6,
+                            color: const Color(0xFFA8A294),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _fmtSigned(net),
+                          style: typo.xl4.copyWith(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w600,
+                            color: colors.background, // Paper
+                            height: 1.0,
+                            letterSpacing: -0.88,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Sparkline
+                    Consumer(builder: (context, ref, child) {
+                      final txAsync = ref.watch(transactionListProvider);
+                      return txAsync.maybeWhen(
+                        data: (txs) {
+                          if (txs.isEmpty) return const SizedBox.shrink();
+                          
+                          // Generate sparkline data from recent transaction amounts
+                          // Reversed to show chronological order
+                          final data = txs.take(15).map((t) => t.totalAmount).toList().reversed.toList();
+                          // Ensure we have at least 2 points
+                          if (data.length == 1) data.add(data.first);
+                          
+                          return SizedBox(
+                            width: 60,
+                            height: 30,
+                            child: SparklineGraph(
+                              data: data,
+                              color: colors.primary, // Teal
+                            ),
+                          );
+                        },
+                        orElse: () => const SizedBox.shrink(),
+                      );
+                    }),
+                  ],
                 ),
                 const SizedBox(height: 22),
                 Row(
@@ -467,9 +517,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final async = ref.watch(transactionListProvider);
 
     return async.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: FCircularProgress()),
+      loading: () => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+        child: Column(
+          children: List.generate(3, (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground.withOpacity(0.1), width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Skeleton(width: 120, height: 16, color: colors.foreground.withOpacity(0.05)),
+                      Skeleton(width: 60, height: 16, color: colors.foreground.withOpacity(0.05)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Skeleton(width: 80, height: 12, color: colors.foreground.withOpacity(0.05)),
+                      Skeleton(width: 40, height: 12, color: colors.foreground.withOpacity(0.05)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          )),
+        ),
       ),
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(16),
@@ -535,19 +616,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // If I created it, others owe me (+), otherwise I owe them (-)
     final amount = isCreator ? tx.totalAmount : -tx.totalAmount;
 
-    return GestureDetector(
+    return NeoButton(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => TransactionDetailScreen(transactionId: tx.id),
         ),
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: colors.card,
-          border: Border.all(color: colors.foreground, width: 1.5),
-        ),
-        child: Column(
+      backgroundColor: colors.card,
+      borderColor: colors.foreground,
+      shadowOffset: 2.0,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,7 +724,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
           ],
         ),
-      ),
     );
   }
 
