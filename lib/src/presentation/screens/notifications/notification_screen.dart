@@ -85,106 +85,156 @@ class NotificationScreen extends ConsumerWidget {
 
             // ── Body ─────────────────────────────────────────────────────────
             Expanded(
-              child: notificationsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-                error: (e, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Error loading notifications: $e',
-                      style: typo.sm.copyWith(color: colors.destructive),
-                    ),
-                  ),
-                ),
-                data: (notifications) {
-                  if (notifications.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: colors.foreground, width: 1.5),
-                              ),
-                              alignment: Alignment.center,
-                              child: Icon(FIcons.bell, size: 30, color: colors.foreground),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              'No notifications yet',
-                              style: typo.lg.copyWith(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: colors.foreground,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  return ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-                    children: [
-                      if (unread > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: colors.primary,
-                                  border: Border.all(color: colors.foreground, width: 1.5),
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(notificationsProvider);
+                  await ref
+                      .read(notificationsProvider.future)
+                      .catchError((_) => <AppNotification>[]);
+                },
+                child: notificationsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+                  error: (_, __) => LayoutBuilder(
+                    builder: (context, constraints) => ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(
+                          height: constraints.maxHeight,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: colors.foreground, width: 1.5),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Icon(FIcons.wifiOff, size: 30, color: colors.foreground),
                                 ),
-                                child: Text(
-                                  '$unread unread',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Connection issue',
+                                  style: typo.lg.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                     color: colors.foreground,
                                   ),
                                 ),
-                              ),
-                              GestureDetector(
-                                onTap: () async {
-                                  final repo = ref.read(notificationRepositoryProvider);
-                                  await repo.markAllAsRead();
-                                  ref.invalidate(notificationsProvider);
-                                },
-                                child: Text(
-                                  'Mark all as read',
-                                  style: typo.sm.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: colors.primary,
-                                    decoration: TextDecoration.underline,
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Pull down to retry',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    color: colors.mutedForeground,
                                   ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  data: (notifications) {
+                    if (notifications.isEmpty) {
+                      return LayoutBuilder(
+                        builder: (context, constraints) => ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: constraints.maxHeight,
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: colors.foreground, width: 1.5),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(FIcons.bell, size: 30, color: colors.foreground),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Text(
+                                      'No notifications yet',
+                                      style: typo.lg.copyWith(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: colors.foreground,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+                      children: [
+                        if (unread > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: colors.primary,
+                                    border: Border.all(color: colors.foreground, width: 1.5),
+                                  ),
+                                  child: Text(
+                                    '$unread unread',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: colors.foreground,
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () async {
+                                    final repo = ref.read(notificationRepositoryProvider);
+                                    await repo.markAllAsRead();
+                                    ref.invalidate(notificationsProvider);
+                                  },
+                                  child: Text(
+                                    'Mark all as read',
+                                    style: typo.sm.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.primary,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            border: Border.all(color: colors.foreground, width: 1.5),
+                          ),
+                          child: Column(
+                            children: [
+                              for (int i = 0; i < notifications.length; i++)
+                                _notificationTile(context, ref, notifications[i], colors, typo, i == 0),
                             ],
                           ),
                         ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: colors.card,
-                          border: Border.all(color: colors.foreground, width: 1.5),
-                        ),
-                        child: Column(
-                          children: [
-                            for (int i = 0; i < notifications.length; i++)
-                              _notificationTile(context, ref, notifications[i], colors, typo, i == 0),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ],
