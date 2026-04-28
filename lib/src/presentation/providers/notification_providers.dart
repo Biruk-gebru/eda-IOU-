@@ -11,9 +11,17 @@ final notificationRepositoryProvider =
 });
 
 final notificationsProvider =
-    StreamProvider<List<AppNotification>>((ref) {
+    StreamProvider<List<AppNotification>>((ref) async* {
   final repository = ref.watch(notificationRepositoryProvider);
-  return repository.watchNotifications();
+  try {
+    await for (final list in repository.watchNotifications()) {
+      yield list;
+    }
+  } on Exception {
+    // Realtime subscription failed (e.g. expired JWT) — fall back to REST fetch.
+    // The user can pull-to-refresh to re-establish the realtime connection.
+    yield await repository.getNotifications();
+  }
 });
 
 final unreadCountProvider = Provider<int>((ref) {
