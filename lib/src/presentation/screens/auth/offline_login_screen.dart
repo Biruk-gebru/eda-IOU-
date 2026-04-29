@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/auth_providers.dart';
+import '../../widgets/neo_button.dart';
 
 class OfflineLoginScreen extends ConsumerWidget {
   const OfflineLoginScreen({super.key});
@@ -62,35 +63,25 @@ class OfflineLoginScreen extends ConsumerWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
-                  GestureDetector(
+                  NeoButton(
                     onTap: () => ref.refresh(authSessionProvider),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        border: Border.all(color: colors.foreground, width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
+                    backgroundColor: colors.primary,
+                    borderColor: colors.foreground,
+                    shadowOffset: 3.0,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(FIcons.refreshCw, size: 18, color: colors.foreground),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Retry Connection',
+                          style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
                             color: colors.foreground,
-                            offset: const Offset(3, 3),
                           ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(FIcons.refreshCw, size: 18, color: colors.foreground),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Retry Connection',
-                            style: typo.sm.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.foreground,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
