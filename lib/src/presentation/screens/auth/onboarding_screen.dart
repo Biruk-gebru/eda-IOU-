@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/user_providers.dart';
 import '../setup/bank_info_screen.dart';
+import '../../widgets/neo_button.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -226,40 +227,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                     const SizedBox(height: 48),
 
-                    GestureDetector(
+                    NeoButton(
                       onTap: _isSubmitting ? null : _next,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        decoration: BoxDecoration(
-                          color: colors.primary,
-                          border: Border.all(color: colors.foreground, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors.foreground,
-                              offset: const Offset(4, 4),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: _isSubmitting
-                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Next',
-                                    style: typo.lg.copyWith(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: colors.foreground,
-                                    ),
+                      backgroundColor: colors.primary,
+                      borderColor: colors.foreground,
+                      shadowOffset: 4.0,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: _isSubmitting
+                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: colors.foreground, strokeWidth: 2.5))
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Next',
+                                  style: typo.lg.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.foreground,
                                   ),
-                                  const SizedBox(width: 10),
-                                  Icon(FIcons.arrowRight, size: 20, color: colors.foreground),
-                                ],
-                              ),
-                      ),
+                                ),
+                                const SizedBox(width: 10),
+                                Icon(FIcons.arrowRight, size: 20, color: colors.foreground),
+                              ],
+                            ),
                     ),
                   ],
                 ),
