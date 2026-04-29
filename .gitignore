@@ -107,6 +107,9 @@ secrets.json
 lib/src/core/constants/supabase_config.dart
 
 
+# Design / prototyping assets (not part of the Flutter app)
+design/
+
 # SQL migration files
 *.sql
 
