@@ -73,6 +73,22 @@ class TransactionRepository {
     }
   }
 
+  Stream<List<Transaction>> watchTransactions() {
+    return _client
+        .from('transactions')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((data) {
+      final seen = <String>{};
+      final transactions = data
+          .map((e) => Transaction.fromJson(e))
+          .where((tx) => seen.add(tx.id))
+          .toList();
+      _cacheTransactions(transactions);
+      return transactions;
+    }).handleError((_) {});
+  }
+
   Future<Transaction> getTransaction(String transactionId) async {
     final data = await _client
         .from('transactions')

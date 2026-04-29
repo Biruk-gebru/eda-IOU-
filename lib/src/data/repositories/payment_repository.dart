@@ -22,6 +22,18 @@ class PaymentRepository {
     }
   }
 
+  Stream<List<PaymentRequest>> watchPendingApprovals() {
+    return _client
+        .from('payment_requests')
+        .stream(primaryKey: ['id'])
+        .eq('receiver_id', _userId)
+        .order('created_at', ascending: false)
+        .map((data) => data
+            .where((e) => e['status'] == 'pending')
+            .map((e) => PaymentRequest.fromJson(e))
+            .toList());
+  }
+
   Future<List<PaymentRequest>> getPaymentRequests() async {
     // Expire timed-out payment requests before fetching
     await checkAndExpirePayments();
@@ -96,10 +108,18 @@ class PaymentRepository {
   }
 
   Future<void> confirmPayment(String paymentRequestId) async {
-    await _client.from('payment_requests').update({
-      'status': 'confirmed',
-      'confirmed_at': DateTime.now().toIso8601String(),
-    }).eq('id', paymentRequestId);
+    // Only update if still pending — prevents double-application if called twice.
+    final updated = await _client
+        .from('payment_requests')
+        .update({
+          'status': 'confirmed',
+          'confirmed_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', paymentRequestId)
+        .eq('status', 'pending')
+        .select('id');
+
+    if ((updated as List).isEmpty) return;
 
     await _client.rpc('apply_payment', params: {
       'p_payment_request_id': paymentRequestId,
