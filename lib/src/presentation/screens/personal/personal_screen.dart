@@ -20,6 +20,15 @@ class PersonalScreen extends ConsumerStatefulWidget {
 class _PersonalScreenState extends ConsumerState<PersonalScreen> {
   static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
 
+  Future<void> _onRefresh() async {
+    ref.invalidate(balancesProvider);
+    ref.invalidate(pendingApprovalsProvider);
+    await Future.wait([
+      ref.read(balancesProvider.future),
+      ref.read(pendingApprovalsProvider.future),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
@@ -31,7 +40,9 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
     return Scaffold(
       backgroundColor: colors.background, // Paper
       body: SafeArea(
-        child: balancesAsync.when(
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: balancesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator.adaptive()),
           error: (e, _) => Center(
             child: Column(
@@ -54,6 +65,7 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
             final names = ref.watch(profileNameCacheProvider);
 
             return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
               children: [
                 Text(
@@ -349,6 +361,7 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
               ],
             );
           },
+        ),
         ),
       ),
     );

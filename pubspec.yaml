@@ -33,7 +33,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
 
   # SMS reading (Android)
-  another_telephony: ^0.3.0
+  another_telephony: ^0.4.1
 
   # Notifications
   flutter_local_notifications: ^18.0.0
@@ -66,5 +66,5 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/logo.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#F5F0E8"
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/logo.png"
