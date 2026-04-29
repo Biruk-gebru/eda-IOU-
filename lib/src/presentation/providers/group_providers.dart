@@ -10,9 +10,9 @@ final groupRepositoryProvider = Provider<GroupRepository>((ref) {
   return GroupRepository(client);
 });
 
-final groupListProvider = FutureProvider<List<Group>>((ref) async {
+final groupListProvider = StreamProvider<List<Group>>((ref) {
   final repository = ref.watch(groupRepositoryProvider);
-  return repository.getGroups();
+  return repository.watchGroups();
 });
 
 final groupDetailProvider =
@@ -28,6 +28,27 @@ final groupMembersProvider =
 });
 
 final pendingInvitationsProvider =
-    FutureProvider<List<({GroupMember member, String groupName})>>((ref) async {
-  return ref.watch(groupRepositoryProvider).getPendingInvitations();
+    StreamProvider<List<({GroupMember member, String groupName})>>((ref) async* {
+  final repo = ref.watch(groupRepositoryProvider);
+  final client = ref.watch(supabaseClientProvider);
+
+  await for (final members in repo.watchPendingInvitations()) {
+    if (members.isEmpty) {
+      yield [];
+      continue;
+    }
+    final withNames = await Future.wait(members.map((m) async {
+      try {
+        final data = await client
+            .from('groups')
+            .select('name')
+            .eq('id', m.groupId)
+            .single();
+        return (member: m, groupName: data['name'] as String? ?? 'Unknown group');
+      } catch (_) {
+        return (member: m, groupName: 'Unknown group');
+      }
+    }));
+    yield withNames;
+  }
 });

@@ -10,10 +10,9 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   return TransactionRepository(client);
 });
 
-final transactionListProvider =
-    FutureProvider<List<Transaction>>((ref) async {
+final transactionListProvider = StreamProvider<List<Transaction>>((ref) {
   final repository = ref.watch(transactionRepositoryProvider);
-  return repository.getTransactions();
+  return repository.watchTransactions();
 });
 
 final transactionDetailProvider =
