@@ -5,6 +5,8 @@ import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/services/sms_parser_service.dart';
+import '../../../domain/entities/payment_request.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/payment_providers.dart';
@@ -33,13 +35,17 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
   bool _submitting = false;
   final _acting = <String>{};
 
+  // SMS verification state
+  String? _selectedPayerBank;      // which bank the payer is sending from
+  String? _selectedReceiverBankType; // which of receiver's accounts is being targeted
+  String? _myBankType;             // current user's bank (for receiver-side scan)
+
   static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
 
   @override
   void initState() {
     super.initState();
-    _amountCtl = TextEditingController(
-        text: widget.amount.toStringAsFixed(0));
+    _amountCtl = TextEditingController(text: widget.amount.toStringAsFixed(0));
     _loadDetails();
   }
 
@@ -65,7 +71,21 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
             .select()
             .eq('user_id', widget.otherUserId);
         _bankAccounts = List<Map<String, dynamic>>.from(accounts);
+        if (_bankAccounts.length == 1) {
+          _selectedReceiverBankType = _bankAccounts.first['bank_type'] as String?;
+        }
       }
+
+      // Load current user's primary bank for receiver-side SMS scan
+      final currentUserId = client.auth.currentUser!.id;
+      final myAccounts = await client
+          .from('banking_accounts')
+          .select()
+          .eq('user_id', currentUserId);
+      if ((myAccounts as List).isNotEmpty) {
+        _myBankType = myAccounts.first['bank_type'] as String?;
+      }
+
       if (mounted) setState(() => _loaded = true);
     } catch (_) {
       if (mounted) setState(() => _loaded = true);
@@ -75,62 +95,118 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
   Future<void> _submit() async {
     final amount = double.tryParse(_amountCtl.text.trim());
     if (amount == null || amount <= 0) return;
+
+    if (widget.iOwe && _selectedPayerBank == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select the bank you sent from')),
+      );
+      return;
+    }
+
     setState(() => _submitting = true);
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       final repo = ref.read(paymentRepositoryProvider);
-      final me = ref.read(supabaseClientProvider).auth.currentUser!.id;
+
       if (widget.iOwe) {
-        // Debtor says "I paid": payer=me, receiver=other
+        final svc = SmsParserService();
+        final granted = await svc.requestPermission();
+        if (!granted) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('SMS permission required to verify payment')),
+          );
+          if (mounted) setState(() => _submitting = false);
+          return;
+        }
+        final match = await svc.findDebitSms(
+          bankType: _selectedPayerBank!,
+          amount: amount,
+        );
+        if (match == null) {
+          messenger.showSnackBar(SnackBar(
+            content: Text(
+              'No transaction found for ${_fmt.format(amount)} from ${_bankLabel(_selectedPayerBank!)} in the last 24 hours',
+            ),
+          ));
+          if (mounted) setState(() => _submitting = false);
+          return;
+        }
         await repo.createPaymentRequest(
           receiverId: widget.otherUserId,
           amount: amount,
+          smsReference: match.reference,
+          payerBankType: _selectedPayerBank,
+          receiverBankType: _selectedReceiverBankType,
         );
+        ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
+        messenger.showSnackBar(SnackBar(
+          content: Text('Marked as paid — ref: ${match.reference}'),
+        ));
       } else {
-        // Creditor requests payment: receiver=me, payer=other
+        // Creditor requesting payment — no SMS scan needed
+        final me = ref.read(supabaseClientProvider).auth.currentUser!.id;
         await repo.createPaymentRequest(
           receiverId: me,
           payerId: widget.otherUserId,
           amount: amount,
         );
-      }
-      ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(widget.iOwe
-              ? 'Marked as paid — awaiting confirmation'
-              : 'Payment request sent to $_name'),
+        ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
+        messenger.showSnackBar(SnackBar(
+          content: Text('Payment request sent to $_name'),
         ));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
-  Future<void> _confirm(String requestId) async {
-    setState(() => _acting.add(requestId));
+  Future<void> _confirm(PaymentRequest req) async {
+    final bankType = req.receiverBankType ?? _myBankType;
+    if (bankType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a bank account in Settings to verify')),
+      );
+      return;
+    }
+
+    setState(() => _acting.add(req.id));
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
-      await ref.read(paymentRepositoryProvider).confirmPayment(requestId);
+      final svc = SmsParserService();
+      final granted = await svc.requestPermission();
+      if (!granted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('SMS permission required to verify payment')),
+        );
+        if (mounted) setState(() => _acting.remove(req.id));
+        return;
+      }
+      final match = await svc.findCreditSms(bankType: bankType, amount: req.amount);
+      if (match == null) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(
+            'No incoming transaction found for ${_fmt.format(req.amount)} in your ${_bankLabel(bankType)} account',
+          ),
+        ));
+        if (mounted) setState(() => _acting.remove(req.id));
+        return;
+      }
+      await ref.read(paymentRepositoryProvider).confirmPayment(req.id);
       ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
       ref.invalidate(pendingApprovalsProvider);
       ref.invalidate(balancesProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment confirmed')),
-        );
+        messenger.showSnackBar(const SnackBar(content: Text('Payment confirmed')));
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      if (mounted) setState(() => _acting.remove(requestId));
+      if (mounted) setState(() => _acting.remove(req.id));
     }
   }
 
@@ -325,6 +401,16 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                                       ),
                                     ],
                                   ),
+                                  if (req.smsReference != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Ref: ${req.smsReference}',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 11,
+                                        color: colors.mutedForeground,
+                                      ),
+                                    ),
+                                  ],
                                   if (req.note != null &&
                                       req.note!.isNotEmpty) ...[
                                     const SizedBox(height: 6),
@@ -369,7 +455,7 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                                           child: GestureDetector(
                                             onTap: _acting.contains(req.id)
                                                 ? null
-                                                : () => _confirm(req.id),
+                                                : () => _confirm(req),
                                             child: Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -398,7 +484,8 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                                                   : Text(
                                                       'Confirm received',
                                                       style: typo.sm.copyWith(
-                                                        fontWeight: FontWeight.w600,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                         color: colors.foreground,
                                                       ),
                                                     ),
@@ -426,6 +513,60 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
 
                   // ── Banking info (debtor only) ─────────────────────────────
                   if (widget.iOwe && _loaded) ...[
+                    // "PAYING FROM" bank selector
+                    Text(
+                      'PAYING FROM',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.6,
+                        color: colors.mutedForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: ['cbe', 'telebirr', 'zemen'].map((bank) {
+                        final selected = _selectedPayerBank == bank;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                setState(() => _selectedPayerBank = bank),
+                            child: Container(
+                              margin: EdgeInsets.only(
+                                right: bank == 'zemen' ? 0 : 8,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? colors.primary
+                                    : Colors.transparent,
+                                border: Border.all(
+                                  color: colors.foreground,
+                                  width: selected ? 2.0 : 1.5,
+                                ),
+                                boxShadow: selected
+                                    ? [
+                                        BoxShadow(
+                                            color: colors.foreground,
+                                            offset: const Offset(2, 2))
+                                      ]
+                                    : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                _bankLabel(bank),
+                                style: typo.sm.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.foreground,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 24),
+
                     if (_bankAccounts.isNotEmpty) ...[
                       Text(
                         'PAY USING',
@@ -450,12 +591,9 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                         ),
                         child: Column(
                           children: [
-                            for (var i = 0;
-                                i < _bankAccounts.length;
-                                i++) ...[
+                            for (var i = 0; i < _bankAccounts.length; i++) ...[
                               if (i > 0)
-                                Container(
-                                    height: 1.5, color: colors.foreground),
+                                Container(height: 1.5, color: colors.foreground),
                               _bankTile(_bankAccounts[i], colors, typo),
                             ],
                           ],
@@ -512,11 +650,9 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Amount input
                   _amountField(colors, typo),
                   const SizedBox(height: 16),
 
-                  // Submit
                   GestureDetector(
                     onTap: _submitting ? null : _submit,
                     child: Container(
@@ -581,8 +717,7 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
     );
     return TextField(
       controller: _amountCtl,
-      keyboardType:
-          const TextInputType.numberWithOptions(decimal: true),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
       ],
@@ -608,55 +743,66 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
 
   Widget _bankTile(
       Map<String, dynamic> acct, FColors colors, FTypography typo) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Icon(
-            acct['bank_type'] == 'telebirr'
-                ? FIcons.smartphone
-                : FIcons.landmark,
-            size: 24,
-            color: colors.foreground,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _bankLabel(acct['bank_type'] as String),
-                  style: typo.lg.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  acct['account_identifier'] as String,
-                  style: GoogleFonts.inter(
-                      fontSize: 14, color: colors.mutedForeground),
-                ),
-              ],
+    final bankType = acct['bank_type'] as String;
+    final isSelected = _selectedReceiverBankType == bankType;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedReceiverBankType = bankType),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colors.primary.withValues(alpha: 0.1)
+              : Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              bankType == 'telebirr' ? FIcons.smartphone : FIcons.landmark,
+              size: 24,
+              color: colors.foreground,
             ),
-          ),
-          GestureDetector(
-            onTap: () {
-              Clipboard.setData(ClipboardData(
-                  text: acct['account_identifier'] as String));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Copied to clipboard')),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                border: Border.all(color: colors.foreground, width: 1.5),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _bankLabel(bankType),
+                    style: typo.lg.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    acct['account_identifier'] as String,
+                    style: GoogleFonts.inter(
+                        fontSize: 14, color: colors.mutedForeground),
+                  ),
+                ],
               ),
-              child: Icon(FIcons.copy, size: 18, color: colors.foreground),
             ),
-          ),
-        ],
+            if (isSelected)
+              Icon(FIcons.check, size: 18, color: colors.foreground),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                Clipboard.setData(
+                    ClipboardData(text: acct['account_identifier'] as String));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Copied to clipboard')),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                ),
+                child: Icon(FIcons.copy, size: 18, color: colors.foreground),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
