@@ -63,6 +63,7 @@ generated_plugin_registrant.dart
 # -------------------------
 # Android Specific
 # -------------------------
+android/build/
 android/.gradle/
 android/local.properties
 android/key.properties
