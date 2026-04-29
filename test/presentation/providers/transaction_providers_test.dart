@@ -28,16 +28,18 @@ void main() {
   group('transactionListProvider', () {
     test('returns list from repository', () async {
       final txList = [makeTransaction(), makeTransaction(id: 'tx-2')];
-      when(() => mockRepo.getTransactions()).thenAnswer((_) async => txList);
+      when(() => mockRepo.watchTransactions())
+          .thenAnswer((_) => Stream.value(txList));
 
       final result = await container.read(transactionListProvider.future);
 
       expect(result, txList);
-      verify(() => mockRepo.getTransactions()).called(1);
+      verify(() => mockRepo.watchTransactions()).called(1);
     });
 
     test('returns empty list when repository returns empty', () async {
-      when(() => mockRepo.getTransactions()).thenAnswer((_) async => []);
+      when(() => mockRepo.watchTransactions())
+          .thenAnswer((_) => Stream.value([]));
 
       final result = await container.read(transactionListProvider.future);
 
@@ -45,11 +47,11 @@ void main() {
     });
 
     test('propagates repository exceptions', () async {
-      when(() => mockRepo.getTransactions())
-          .thenThrow(Exception('network error'));
+      when(() => mockRepo.watchTransactions())
+          .thenAnswer((_) => Stream.error(Exception('network error')));
 
       expect(
-        () => container.read(transactionListProvider.future),
+        container.read(transactionListProvider.future),
         throwsException,
       );
     });
@@ -129,8 +131,8 @@ void main() {
         totalAmount: 300,
         description: 'Dinner',
       );
-      when(() => mockRepo.getTransactions())
-          .thenAnswer((_) async => [aliceTx]);
+      when(() => mockRepo.watchTransactions())
+          .thenAnswer((_) => Stream.value([aliceTx]));
 
       final result = await container.read(transactionListProvider.future);
 
