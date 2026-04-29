@@ -9,7 +9,7 @@ final balanceRepositoryProvider = Provider<BalanceRepository>((ref) {
   return BalanceRepository(client);
 });
 
-final balancesProvider = FutureProvider<List<NetBalance>>((ref) async {
+final balancesProvider = StreamProvider<List<NetBalance>>((ref) {
   final repository = ref.watch(balanceRepositoryProvider);
-  return repository.getBalances();
+  return repository.watchBalances();
 });

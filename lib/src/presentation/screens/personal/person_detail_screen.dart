@@ -31,6 +31,7 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
   bool _loaded = false;
   late final TextEditingController _amountCtl;
   bool _submitting = false;
+  final _acting = <String>{};
 
   static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
 
@@ -111,6 +112,7 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
   }
 
   Future<void> _confirm(String requestId) async {
+    setState(() => _acting.add(requestId));
     try {
       await ref.read(paymentRepositoryProvider).confirmPayment(requestId);
       ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
@@ -127,10 +129,13 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _acting.remove(requestId));
     }
   }
 
   Future<void> _reject(String requestId) async {
+    setState(() => _acting.add(requestId));
     try {
       await ref.read(paymentRepositoryProvider).rejectPayment(requestId);
       ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
@@ -139,6 +144,8 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _acting.remove(requestId));
     }
   }
 
@@ -334,7 +341,9 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                                       children: [
                                         Expanded(
                                           child: GestureDetector(
-                                            onTap: () => _reject(req.id),
+                                            onTap: _acting.contains(req.id)
+                                                ? null
+                                                : () => _reject(req.id),
                                             child: Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -358,7 +367,9 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: GestureDetector(
-                                            onTap: () => _confirm(req.id),
+                                            onTap: _acting.contains(req.id)
+                                                ? null
+                                                : () => _confirm(req.id),
                                             child: Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -376,13 +387,21 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                                                 ],
                                               ),
                                               alignment: Alignment.center,
-                                              child: Text(
-                                                'Confirm received',
-                                                style: typo.sm.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: colors.foreground,
-                                                ),
-                                              ),
+                                              child: _acting.contains(req.id)
+                                                  ? SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child: CircularProgressIndicator(
+                                                          color: colors.foreground,
+                                                          strokeWidth: 2),
+                                                    )
+                                                  : Text(
+                                                      'Confirm received',
+                                                      style: typo.sm.copyWith(
+                                                        fontWeight: FontWeight.w600,
+                                                        color: colors.foreground,
+                                                      ),
+                                                    ),
                                             ),
                                           ),
                                         ),
