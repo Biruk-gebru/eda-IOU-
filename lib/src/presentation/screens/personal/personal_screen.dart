@@ -7,7 +7,9 @@ import 'package:intl/intl.dart';
 import '../../../domain/entities/net_balance.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/payment_providers.dart';
+import '../../providers/settlement_providers.dart';
 import '../../providers/user_providers.dart';
+import '../settlements/settlement_screen.dart';
 import 'person_detail_screen.dart';
 
 class PersonalScreen extends ConsumerStatefulWidget {
@@ -192,7 +194,78 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+
+                // ── Settlements entry ─────────────────────────────────────────────
+                Consumer(
+                  builder: (context, ref, _) {
+                    final settlementsAsync = ref.watch(settlementRequestsProvider);
+                    final pending = settlementsAsync.whenOrNull(
+                          data: (list) => list.where((s) => s.status == 'pending').length,
+                        ) ??
+                        0;
+                    return GestureDetector(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SettlementScreen()),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(color: colors.foreground, offset: const Offset(3, 3)),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.swap_horiz_rounded, size: 22, color: colors.foreground),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Settlements',
+                                    style: typo.sm.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.foreground,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Route debts through shared contacts',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 12, color: colors.mutedForeground),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (pending > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: colors.primary,
+                                  border: Border.all(color: colors.foreground, width: 1.5),
+                                ),
+                                child: Text(
+                                  '$pending pending',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.foreground,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            Icon(FIcons.chevronRight, size: 18, color: colors.foreground),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 16),
 
                 // ── Pending approvals ─────────────────────────────────────────────
                 Consumer(
