@@ -92,6 +92,123 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
     }
   }
 
+  /// Shows a combined date + time picker and returns the chosen [DateTime],
+  /// or null if the user cancelled. Capped at 7 days in the past.
+  Future<DateTime?> _pickSendTime() async {
+    final now = DateTime.now();
+    final earliest = now.subtract(const Duration(days: 7));
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: earliest,
+      lastDate: now,
+      helpText: 'When did you send this payment?',
+    );
+    if (date == null || !mounted) return null;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+      helpText: 'At what time?',
+    );
+    if (time == null) return null;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  /// Returns true if [reference] is already attached to another payment_request
+  /// by the current user — prevents reusing the same SMS proof twice.
+  Future<bool> _isDuplicateReference(String reference) async {
+    final client = ref.read(supabaseClientProvider);
+    final me = client.auth.currentUser!.id;
+    final rows = await client
+        .from('payment_requests')
+        .select('id')
+        .eq('payer_id', me)
+        .eq('sms_reference', reference);
+    return (rows as List).isNotEmpty;
+  }
+
+  Future<void> _submitWithAnchor(
+    double amount,
+    DateTime anchor, {
+    Duration before = const Duration(hours: 12),
+    Duration after = const Duration(hours: 1),
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _submitting = true);
+    try {
+      final svc = SmsParserService();
+      final granted = await svc.requestPermission();
+      if (!granted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('SMS permission required to verify payment')),
+        );
+        return;
+      }
+      final match = await svc.findDebitSms(
+        bankType: _selectedPayerBank!,
+        amount: amount,
+        anchor: anchor,
+        before: before,
+        after: after,
+      );
+      if (match == null) {
+        final anchorLabel = DateFormat('d MMM, HH:mm').format(anchor);
+        final alreadyWide = before >= const Duration(hours: 24);
+        if (!mounted) return;
+        messenger.showSnackBar(SnackBar(
+          content: Text(
+            'No ${_bankLabel(_selectedPayerBank!)} transaction found near $anchorLabel for ${_fmt.format(amount)}',
+          ),
+          action: alreadyWide
+              ? null
+              : SnackBarAction(
+                  label: 'Search wider',
+                  onPressed: () => _submitWithAnchor(
+                    amount,
+                    anchor,
+                    before: const Duration(hours: 24),
+                    after: const Duration(hours: 6),
+                  ),
+                ),
+          duration: const Duration(seconds: 6),
+        ));
+        return;
+      }
+
+      final isDuplicate = await _isDuplicateReference(match.reference);
+      if (isDuplicate) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Reference ${match.reference} is already linked to another payment. Select a different send time to find another transaction.',
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+        return;
+      }
+
+      final repo = ref.read(paymentRepositoryProvider);
+      await repo.createPaymentRequest(
+        receiverId: widget.otherUserId,
+        amount: amount,
+        smsReference: match.reference,
+        payerBankType: _selectedPayerBank,
+        receiverBankType: _selectedReceiverBankType,
+      );
+      ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('Marked as paid — ref: ${match.reference}'),
+        ));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   Future<void> _submit() async {
     final amount = double.tryParse(_amountCtl.text.trim());
     if (amount == null || amount <= 0) return;
@@ -103,59 +220,28 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
       return;
     }
 
+    if (widget.iOwe) {
+      // Ask the user when they sent the payment so we can anchor the SMS search.
+      final anchor = await _pickSendTime();
+      if (anchor == null) return; // user cancelled
+      await _submitWithAnchor(amount, anchor);
+      return;
+    }
+
+    // Creditor requesting payment — no SMS scan needed.
     setState(() => _submitting = true);
     final messenger = ScaffoldMessenger.of(context);
-
     try {
-      final repo = ref.read(paymentRepositoryProvider);
-
-      if (widget.iOwe) {
-        final svc = SmsParserService();
-        final granted = await svc.requestPermission();
-        if (!granted) {
-          messenger.showSnackBar(
-            const SnackBar(content: Text('SMS permission required to verify payment')),
-          );
-          if (mounted) setState(() => _submitting = false);
-          return;
-        }
-        final match = await svc.findDebitSms(
-          bankType: _selectedPayerBank!,
-          amount: amount,
-        );
-        if (match == null) {
-          messenger.showSnackBar(SnackBar(
-            content: Text(
-              'No transaction found for ${_fmt.format(amount)} from ${_bankLabel(_selectedPayerBank!)} in the last 24 hours',
-            ),
-          ));
-          if (mounted) setState(() => _submitting = false);
-          return;
-        }
-        await repo.createPaymentRequest(
-          receiverId: widget.otherUserId,
-          amount: amount,
-          smsReference: match.reference,
-          payerBankType: _selectedPayerBank,
-          receiverBankType: _selectedReceiverBankType,
-        );
-        ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
-        messenger.showSnackBar(SnackBar(
-          content: Text('Marked as paid — ref: ${match.reference}'),
-        ));
-      } else {
-        // Creditor requesting payment — no SMS scan needed
-        final me = ref.read(supabaseClientProvider).auth.currentUser!.id;
-        await repo.createPaymentRequest(
-          receiverId: me,
-          payerId: widget.otherUserId,
-          amount: amount,
-        );
-        ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
-        messenger.showSnackBar(SnackBar(
-          content: Text('Payment request sent to $_name'),
-        ));
-      }
+      final me = ref.read(supabaseClientProvider).auth.currentUser!.id;
+      await ref.read(paymentRepositoryProvider).createPaymentRequest(
+        receiverId: me,
+        payerId: widget.otherUserId,
+        amount: amount,
+      );
+      ref.invalidate(pendingRequestsBetweenProvider(widget.otherUserId));
+      messenger.showSnackBar(SnackBar(
+        content: Text('Payment request sent to $_name'),
+      ));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
@@ -401,14 +487,33 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 8),
+                                  // Payment reference block — visible to both
+                                  // parties for cross-checking with bank records.
+                                  _referenceRow(
+                                    label: 'Payment ID',
+                                    value: req.id.length > 8
+                                        ? '…${req.id.substring(req.id.length - 8)}'
+                                        : req.id,
+                                    copyValue: req.id,
+                                    colors: colors,
+                                  ),
                                   if (req.smsReference != null) ...[
                                     const SizedBox(height: 4),
+                                    _referenceRow(
+                                      label: 'Bank Ref',
+                                      value: req.smsReference!,
+                                      copyValue: req.smsReference!,
+                                      colors: colors,
+                                    ),
+                                  ],
+                                  if (req.createdAt != null) ...[
+                                    const SizedBox(height: 4),
                                     Text(
-                                      'Ref: ${req.smsReference}',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 11,
-                                        color: colors.mutedForeground,
-                                      ),
+                                      DateFormat('d MMM yyyy, HH:mm').format(req.createdAt!),
+                                      style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: colors.mutedForeground),
                                     ),
                                   ],
                                   if (req.note != null &&
@@ -804,6 +909,44 @@ class _PersonDetailScreenState extends ConsumerState<PersonDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _referenceRow({
+    required String label,
+    required String value,
+    required String copyValue,
+    required FColors colors,
+  }) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: colors.mutedForeground),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.jetBrainsMono(
+                fontSize: 11, color: colors.mutedForeground),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        GestureDetector(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: copyValue));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('Copied')));
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Icon(FIcons.copy, size: 14, color: colors.mutedForeground),
+          ),
+        ),
+      ],
     );
   }
 
