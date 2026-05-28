@@ -141,11 +141,12 @@ class GroupRepository {
         .eq('user_id', _userId!);
   }
 
-  /// Declines (deletes) a pending invitation for the current user.
+  /// Declines a pending invitation by setting status to 'declined'.
+  /// Preserves the row for audit purposes and prevents re-invite spam.
   Future<void> declineInvitation(String groupId) async {
     await _client
         .from('group_members')
-        .delete()
+        .update({'status': 'declined'})
         .eq('group_id', groupId)
         .eq('user_id', _userId!);
   }
@@ -179,6 +180,25 @@ class GroupRepository {
           (e['groups'] as Map?)?['name'] as String? ?? 'Unknown group';
       return (member: member, groupName: groupName);
     }).toList();
+  }
+
+  /// Returns a group_id where [a], [b], and [c] are all active members,
+  /// or null if no such group exists. Used to validate settlement routing.
+  Future<String?> getSharedGroupId(String a, String b, String c) async {
+    Future<Set<String>> activeGroups(String userId) async {
+      final rows = await _client
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', userId)
+          .eq('status', 'active');
+      return (rows as List).map((e) => e['group_id'] as String).toSet();
+    }
+
+    final groupsA = await activeGroups(a);
+    final groupsB = await activeGroups(b);
+    final groupsC = await activeGroups(c);
+    final shared = groupsA.intersection(groupsB).intersection(groupsC);
+    return shared.isEmpty ? null : shared.first;
   }
 
   Future<void> removeMember(String groupId, String userId) async {
