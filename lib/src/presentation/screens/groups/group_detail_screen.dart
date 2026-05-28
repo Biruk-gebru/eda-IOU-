@@ -12,6 +12,7 @@ import '../../providers/payment_providers.dart';
 import '../../providers/settlement_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
+import '../../widgets/debt_graph.dart';
 import '../../widgets/settlement_flow_animation.dart';
 
 class GroupDetailScreen extends ConsumerStatefulWidget {
@@ -1598,7 +1599,19 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
           if (_debts.isNotEmpty) ...[
             _sectionLabel('GROUP DEBTS', colors),
             const SizedBox(height: 12),
-            ..._debts.map((d) => _debtEdgeTile(d, myId, colors, typo)),
+            Container(
+              height: 240,
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: colors.foreground, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                      color: colors.foreground, offset: const Offset(3, 3)),
+                ],
+              ),
+              padding: const EdgeInsets.all(16),
+              child: DebtGraph(debts: _debts, myId: myId),
+            ),
             const SizedBox(height: 32),
           ],
 
@@ -1635,60 +1648,6 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
           color: colors.mutedForeground,
         ),
       );
-
-  Widget _debtEdgeTile(Map<String, dynamic> debt, String myId,
-      FColors colors, FTypography typo) {
-    final isDebtor = debt['debtor_id'] == myId;
-    final isCreditor = debt['creditor_id'] == myId;
-    final debtorName = isDebtor ? 'You' : (debt['debtor_name'] as String);
-    final creditorName =
-        isCreditor ? 'You' : (debt['creditor_name'] as String);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: (isDebtor || isCreditor)
-            ? colors.primary.withValues(alpha: 0.1)
-            : colors.card,
-        border: Border.all(color: colors.foreground, width: 1.5),
-      ),
-      child: Row(
-        children: [
-          _avatarBox(debtorName, colors, typo),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  _fmt.format(debt['amount']),
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.foreground,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                        child: Divider(
-                            color: colors.foreground, thickness: 1.5)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(FIcons.arrowRight,
-                          size: 14, color: colors.foreground),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          _avatarBox(creditorName, colors, typo),
-        ],
-      ),
-    );
-  }
 
   Widget _opportunityCard(
       Map<String, dynamic> opp, FColors colors, FTypography typo) {
@@ -1879,24 +1838,6 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _avatarBox(String name, FColors colors, FTypography typo) {
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: colors.foreground, width: 1.5),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: typo.sm
-            .copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
       ),
     );
   }
