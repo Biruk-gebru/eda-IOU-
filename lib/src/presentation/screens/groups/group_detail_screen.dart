@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
+import '../../../domain/entities/settlement_request.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/balance_providers.dart';
 import '../../providers/group_providers.dart';
 import '../../providers/payment_providers.dart';
+import '../../providers/settlement_providers.dart';
 import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
+import '../../widgets/settlement_flow_animation.dart';
 
 class GroupDetailScreen extends ConsumerStatefulWidget {
   const GroupDetailScreen({
@@ -107,6 +111,8 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                   _buildTab(1, 'Members', colors, typo),
                   Container(width: 1.5, height: 48, color: colors.foreground),
                   _buildTab(2, 'Requests', colors, typo),
+                  Container(width: 1.5, height: 48, color: colors.foreground),
+                  _buildTab(3, 'Settle', colors, typo),
                 ],
               ),
             ),
@@ -118,6 +124,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                   _LedgerTab(groupId: widget.groupId),
                   _MembersTab(groupId: widget.groupId),
                   _RequestsTab(groupId: widget.groupId),
+                  _SettleTab(groupId: widget.groupId),
                 ],
               ),
             ),
@@ -1212,6 +1219,705 @@ class _RequestsTab extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+}
+
+// ── _SettleTab ────────────────────────────────────────────────────────────────
+
+class _SettleTab extends ConsumerStatefulWidget {
+  const _SettleTab({required this.groupId});
+  final String groupId;
+
+  @override
+  ConsumerState<_SettleTab> createState() => _SettleTabState();
+}
+
+class _SettleTabState extends ConsumerState<_SettleTab> {
+  static final _fmt = NumberFormat.currency(symbol: 'ETB ', decimalDigits: 0);
+
+  List<Map<String, dynamic>> _debts = [];
+  Set<String> _memberIds = {};
+  bool _loading = true;
+  String? _error;
+  final Map<String, String> _nameCache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final balances = await ref
+          .read(settlementRepositoryProvider)
+          .getGroupNetBalances(widget.groupId);
+      final membersRaw = await client
+          .from('group_members')
+          .select('user_id')
+          .eq('group_id', widget.groupId)
+          .eq('status', 'active');
+      if (mounted) {
+        setState(() {
+          _debts = balances;
+          _memberIds = (membersRaw as List)
+              .map((e) => e['user_id'] as String)
+              .toSet();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<String> _resolveName(String userId) async {
+    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
+    final client = ref.read(supabaseClientProvider);
+    if (userId == client.auth.currentUser?.id) {
+      _nameCache[userId] = 'You';
+      return 'You';
+    }
+    try {
+      final p = await client
+          .from('profiles')
+          .select('display_name')
+          .eq('id', userId)
+          .maybeSingle();
+      final name = p?['display_name'] as String? ?? 'Unknown';
+      _nameCache[userId] = name;
+      return name;
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
+
+  // C owes Me + Me owes B → C can pay B directly
+  List<Map<String, dynamic>> _opportunities(String myId) {
+    final owedToMe = _debts.where((d) => d['creditor_id'] == myId).toList();
+    final iOwe = _debts.where((d) => d['debtor_id'] == myId).toList();
+    final result = <Map<String, dynamic>>[];
+    for (final credit in owedToMe) {
+      for (final debt in iOwe) {
+        final cOwesMe = credit['amount'] as double;
+        final iOweB = debt['amount'] as double;
+        result.add({
+          'payer_id': credit['debtor_id'],
+          'payer_name': credit['debtor_name'],
+          'receiver_id': debt['creditor_id'],
+          'receiver_name': debt['creditor_name'],
+          'c_owes_me': cOwesMe,
+          'i_owe_b': iOweB,
+          'amount': cOwesMe < iOweB ? cOwesMe : iOweB,
+        });
+      }
+    }
+    return result;
+  }
+
+  Future<void> _confirmAndRoute(Map<String, dynamic> opp) async {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(22),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: colors.background,
+            border: Border.all(color: colors.foreground, width: 1.5),
+            boxShadow: [
+              BoxShadow(color: colors.foreground, offset: const Offset(6, 6)),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Redirect Debt',
+                  style: typo.lg.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground)),
+              const SizedBox(height: 6),
+              Text(
+                'This will ask ${opp['payer_name']} to pay ${opp['receiver_name']} directly.',
+                style: GoogleFonts.inter(
+                    fontSize: 13, color: colors.mutedForeground),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  border: Border.all(color: colors.foreground, width: 1.5),
+                ),
+                child: Column(
+                  children: [
+                    _labelAmountRow('${opp['payer_name']} owes you',
+                        _fmt.format(opp['c_owes_me']), colors, typo),
+                    Container(
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        height: 1,
+                        color: colors.foreground.withValues(alpha: 0.15)),
+                    _labelAmountRow('You owe ${opp['receiver_name']}',
+                        _fmt.format(opp['i_owe_b']), colors, typo),
+                    Container(
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        height: 1.5,
+                        color: colors.foreground),
+                    Row(
+                      children: [
+                        Icon(Icons.swap_horiz_rounded,
+                            size: 16, color: colors.foreground),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${opp['payer_name']} → ${opp['receiver_name']}',
+                            style: typo.sm.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.foreground),
+                          ),
+                        ),
+                        Text(
+                          _fmt.format(opp['amount']),
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: colors.foreground),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(true),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                          color: colors.foreground,
+                          offset: const Offset(3, 3)),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('Send Route Request',
+                      style: typo.sm.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(false),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('Cancel',
+                      style: typo.sm.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(settlementRepositoryProvider).createSettlementRequest(
+            payerId: opp['payer_id'] as String,
+            receiverId: opp['receiver_id'] as String,
+            amount: opp['amount'] as double,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Route request sent to ${opp['payer_name']}')),
+        );
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _approveSettlement(SettlementRequest settlement) async {
+    final payerName = await _resolveName(settlement.payerId);
+    final receiverName = await _resolveName(settlement.receiverId);
+    final initiatorName = await _resolveName(settlement.initiatorId);
+    if (!mounted) return;
+
+    final approvalFuture =
+        ref.read(settlementRepositoryProvider).approveSettlement(settlement.id);
+
+    await Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => SettlementFlowAnimation(
+          payerName: payerName,
+          receiverName: receiverName,
+          initiatorName: initiatorName,
+          amount: settlement.amount,
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+    );
+
+    try {
+      await approvalFuture;
+      _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _rejectSettlement(String id) async {
+    try {
+      await ref.read(settlementRepositoryProvider).rejectSettlement(id);
+      _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typo = context.theme.typography;
+    final myId =
+        ref.watch(supabaseClientProvider).auth.currentUser?.id ?? '';
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator.adaptive());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
+              const SizedBox(height: 12),
+              Text(_error!,
+                  style: typo.sm.copyWith(color: colors.mutedForeground),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: _loadData,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.foreground, width: 1.5),
+                  ),
+                  child: Text('Retry',
+                      style: typo.sm.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final opps = _opportunities(myId);
+    final settlementsAsync = ref.watch(settlementRequestsProvider);
+    final pendingApprovals = settlementsAsync.whenOrNull(
+          data: (list) => list
+              .where((s) =>
+                  s.status == 'pending' &&
+                  s.payerId == myId &&
+                  _memberIds.contains(s.initiatorId) &&
+                  _memberIds.contains(s.receiverId))
+              .toList(),
+        ) ??
+        [];
+
+    final isEmpty =
+        _debts.isEmpty && opps.isEmpty && pendingApprovals.isEmpty;
+
+    return RefreshIndicator(
+      onRefresh: () => _loadData(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 40),
+        children: [
+          if (isEmpty) ...[
+            const SizedBox(height: 60),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.swap_horiz_rounded,
+                      size: 48, color: colors.mutedForeground),
+                  const SizedBox(height: 16),
+                  Text('All settled up',
+                      style: typo.lg.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground)),
+                  const SizedBox(height: 8),
+                  Text('No debts between group members',
+                      style: GoogleFonts.inter(
+                          fontSize: 13, color: colors.mutedForeground)),
+                ],
+              ),
+            ),
+          ],
+
+          if (_debts.isNotEmpty) ...[
+            _sectionLabel('GROUP DEBTS', colors),
+            const SizedBox(height: 12),
+            ..._debts.map((d) => _debtEdgeTile(d, myId, colors, typo)),
+            const SizedBox(height: 32),
+          ],
+
+          if (opps.isNotEmpty) ...[
+            _sectionLabel('ROUTING OPPORTUNITIES', colors),
+            const SizedBox(height: 6),
+            Text(
+              'Redirect a debt — ask someone who owes you to pay who you owe',
+              style: GoogleFonts.inter(
+                  fontSize: 12, color: colors.mutedForeground),
+            ),
+            const SizedBox(height: 14),
+            ...opps.map((o) => _opportunityCard(o, colors, typo)),
+            const SizedBox(height: 32),
+          ],
+
+          if (pendingApprovals.isNotEmpty) ...[
+            _sectionLabel('PENDING YOUR APPROVAL', colors),
+            const SizedBox(height: 12),
+            ...pendingApprovals
+                .map((s) => _pendingSettlementTile(s, colors, typo)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text, FColors colors) => Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.6,
+          color: colors.mutedForeground,
+        ),
+      );
+
+  Widget _debtEdgeTile(Map<String, dynamic> debt, String myId,
+      FColors colors, FTypography typo) {
+    final isDebtor = debt['debtor_id'] == myId;
+    final isCreditor = debt['creditor_id'] == myId;
+    final debtorName = isDebtor ? 'You' : (debt['debtor_name'] as String);
+    final creditorName =
+        isCreditor ? 'You' : (debt['creditor_name'] as String);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: (isDebtor || isCreditor)
+            ? colors.primary.withValues(alpha: 0.1)
+            : colors.card,
+        border: Border.all(color: colors.foreground, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          _avatarBox(debtorName, colors, typo),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  _fmt.format(debt['amount']),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                        child: Divider(
+                            color: colors.foreground, thickness: 1.5)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(FIcons.arrowRight,
+                          size: 14, color: colors.foreground),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          _avatarBox(creditorName, colors, typo),
+        ],
+      ),
+    );
+  }
+
+  Widget _opportunityCard(
+      Map<String, dynamic> opp, FColors colors, FTypography typo) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        border: Border.all(color: colors.foreground, width: 1.5),
+        boxShadow: [
+          BoxShadow(color: colors.foreground, offset: const Offset(3, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.primary,
+              border: Border(
+                  bottom: BorderSide(color: colors.foreground, width: 1.5)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.swap_horiz_rounded,
+                    size: 16, color: colors.foreground),
+                const SizedBox(width: 8),
+                Text(
+                  'DEBT ROUTE',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.4,
+                    color: colors.foreground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _labelAmountRow('${opp['payer_name']} owes you',
+                    _fmt.format(opp['c_owes_me']), colors, typo),
+                const SizedBox(height: 6),
+                _labelAmountRow('You owe ${opp['receiver_name']}',
+                    _fmt.format(opp['i_owe_b']), colors, typo),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  height: 1.5,
+                  color: colors.foreground.withValues(alpha: 0.2),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Ask ${opp['payer_name']} to pay ${opp['receiver_name']} directly',
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: colors.mutedForeground),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      _fmt.format(opp['amount']),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _confirmAndRoute(opp),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: colors.foreground,
+                border: Border(
+                    top: BorderSide(color: colors.foreground, width: 1.5)),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                'ROUTE IT',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                  color: colors.background,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pendingSettlementTile(
+      SettlementRequest s, FColors colors, FTypography typo) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        border: Border.all(color: colors.foreground, width: 1.5),
+        boxShadow: [
+          BoxShadow(color: colors.foreground, offset: const Offset(3, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pay ${_fmt.format(s.amount)} directly',
+                  style: typo.lg.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colors.foreground),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<String>(
+                  future: _resolveName(s.initiatorId),
+                  builder: (_, snap) => Text(
+                    'Requested by ${snap.data ?? '...'}',
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: colors.mutedForeground),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                FutureBuilder<String>(
+                  future: _resolveName(s.receiverId),
+                  builder: (_, snap) => Text(
+                    'To: ${snap.data ?? '...'}',
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: colors.mutedForeground),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(height: 1.5, color: colors.foreground),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _rejectSettlement(s.id),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: colors.destructive,
+                      border: Border(
+                          right: BorderSide(
+                              color: colors.foreground, width: 1.5)),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text('Decline',
+                        style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground)),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _approveSettlement(s),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    color: colors.primary,
+                    alignment: Alignment.center,
+                    child: Text('Approve & Pay',
+                        style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _avatarBox(String name, FColors colors, FTypography typo) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        border: Border.all(color: colors.foreground, width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: typo.sm
+            .copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
+      ),
+    );
+  }
+
+  Widget _labelAmountRow(
+      String label, String amount, FColors colors, FTypography typo) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(label,
+              style: GoogleFonts.inter(
+                  fontSize: 13, color: colors.mutedForeground)),
+        ),
+        Text(
+          amount,
+          style: GoogleFonts.jetBrainsMono(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colors.foreground),
+        ),
+      ],
     );
   }
 }
