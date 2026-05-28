@@ -29,11 +29,53 @@ class SettlementRepository {
             data.map((e) => SettlementRequest.fromJson(e)).toList());
   }
 
+  /// Returns IDs of users who share an active group with the current user,
+  /// excluding the current user themselves.
+  Future<List<Map<String, dynamic>>> getGroupContacts() async {
+    // Step 1 — groups the current user is actively in.
+    final myMemberships = await _client
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', _userId)
+        .eq('status', 'active');
+    final myGroupIds =
+        (myMemberships as List).map((e) => e['group_id'] as String).toList();
+    if (myGroupIds.isEmpty) return [];
+
+    // Step 2 — all active members in those groups, excluding self.
+    final rows = await _client
+        .from('group_members')
+        .select('user_id')
+        .inFilter('group_id', myGroupIds)
+        .eq('status', 'active')
+        .neq('user_id', _userId);
+    final uniqueIds =
+        (rows as List).map((e) => e['user_id'] as String).toSet().toList();
+    if (uniqueIds.isEmpty) return [];
+
+    // Step 3 — fetch display names.
+    final profiles = await _client
+        .from('profiles')
+        .select('id, display_name')
+        .inFilter('id', uniqueIds);
+    return List<Map<String, dynamic>>.from(profiles);
+  }
+
+  /// Creates a settlement request.
+  /// Throws if the initiator, payer, and receiver do not all share an active group —
+  /// settlement routing is intentionally restricted to known group members.
   Future<SettlementRequest> createSettlementRequest({
     required String payerId,
     required String receiverId,
     required double amount,
   }) async {
+    final sharedGroup = await _sharedGroupId(_userId, payerId, receiverId);
+    if (sharedGroup == null) {
+      throw Exception(
+        'Settlement routing requires all three parties to share a group.',
+      );
+    }
+
     final data = await _client.from('settlement_requests').insert({
       'initiator_id': _userId,
       'payer_id': payerId,
@@ -41,6 +83,23 @@ class SettlementRepository {
       'amount': amount,
     }).select().single();
     return SettlementRequest.fromJson(data);
+  }
+
+  Future<String?> _sharedGroupId(String a, String b, String c) async {
+    Future<Set<String>> activeGroups(String userId) async {
+      final rows = await _client
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', userId)
+          .eq('status', 'active');
+      return (rows as List).map((e) => e['group_id'] as String).toSet();
+    }
+
+    final groupsA = await activeGroups(a);
+    final groupsB = await activeGroups(b);
+    final groupsC = await activeGroups(c);
+    final shared = groupsA.intersection(groupsB).intersection(groupsC);
+    return shared.isEmpty ? null : shared.first;
   }
 
   Future<void> approveSettlement(String settlementRequestId) async {
