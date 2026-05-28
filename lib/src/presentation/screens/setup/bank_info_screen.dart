@@ -84,6 +84,29 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
   final _accountNameController = TextEditingController();
   bool _isLoading = false;
   String? _error;
+  List<Map<String, dynamic>> _savedAccounts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedAccounts();
+  }
+
+  Future<void> _loadSavedAccounts() async {
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return;
+      final rows = await client
+          .from('banking_accounts')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at');
+      if (mounted) {
+        setState(() => _savedAccounts = List<Map<String, dynamic>>.from(rows));
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -142,6 +165,10 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Banking info saved')),
         );
+        _identifierController.clear();
+        _accountNameController.clear();
+        setState(() => _selectedBank = null);
+        await _loadSavedAccounts();
         _navigateAway();
       }
     } catch (e) {
@@ -254,6 +281,44 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
                         height: 1.5,
                       ),
                     ),
+
+                    // ── Saved accounts ────────────────────────────────────────
+                    if (_savedAccounts.isNotEmpty) ...[
+                      const SizedBox(height: 32),
+                      Text(
+                        'YOUR ACCOUNTS',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.6,
+                          color: colors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          border: Border.all(color: colors.foreground, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                                color: colors.foreground,
+                                offset: const Offset(3, 3)),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            for (var i = 0;
+                                i < _savedAccounts.length;
+                                i++) ...[
+                              if (i > 0)
+                                Container(height: 1.5, color: colors.foreground),
+                              _savedAccountTile(_savedAccounts[i], colors, typo),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 32),
 
                     // Bank selection
@@ -442,6 +507,75 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _savedAccountTile(
+      Map<String, dynamic> acct, FColors colors, FTypography typo) {
+    final bankType = acct['bank_type'] as String? ?? '';
+    final identifier = acct['account_identifier'] as String? ?? '';
+    final accountName = acct['account_name'] as String? ?? '';
+    final bankName = switch (bankType) {
+      'telebirr' => 'Telebirr',
+      'cbe' => 'CBE',
+      'zemen' => 'Zemen Bank',
+      _ => bankType,
+    };
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Icon(
+            bankType == 'telebirr' ? FIcons.smartphone : FIcons.landmark,
+            size: 22,
+            color: colors.foreground,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bankName,
+                  style: typo.sm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  identifier,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
+                    color: colors.mutedForeground,
+                  ),
+                ),
+                if (accountName.isNotEmpty)
+                  Text(
+                    accountName,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: colors.mutedForeground),
+                  ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: identifier));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Account number copied')),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border.all(color: colors.foreground, width: 1.5),
+              ),
+              child: Icon(FIcons.copy, size: 18, color: colors.foreground),
+            ),
+          ),
+        ],
       ),
     );
   }
