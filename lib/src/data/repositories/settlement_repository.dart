@@ -137,4 +137,48 @@ class SettlementRepository {
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', settlementRequestId);
   }
+
+  /// Returns all non-zero debt edges between active members of [groupId].
+  /// Each entry is normalized to debtor → creditor form with display names.
+  Future<List<Map<String, dynamic>>> getGroupNetBalances(String groupId) async {
+    final membersRaw = await _client
+        .from('group_members')
+        .select('user_id')
+        .eq('group_id', groupId)
+        .eq('status', 'active');
+    final memberIds =
+        (membersRaw as List).map((e) => e['user_id'] as String).toList();
+    if (memberIds.length < 2) return [];
+
+    final balancesRaw = await _client
+        .from('net_balances')
+        .select('user_a, user_b, net_amount')
+        .inFilter('user_a', memberIds)
+        .inFilter('user_b', memberIds)
+        .neq('net_amount', 0);
+
+    final profilesRaw = await _client
+        .from('profiles')
+        .select('id, display_name')
+        .inFilter('id', memberIds);
+    final nameMap = {
+      for (final p in profilesRaw as List)
+        p['id'] as String: p['display_name'] as String? ?? 'Unknown',
+    };
+
+    return (balancesRaw as List).map((b) {
+      final userA = b['user_a'] as String;
+      final userB = b['user_b'] as String;
+      final net = (b['net_amount'] as num).toDouble();
+      final debtorId = net > 0 ? userA : userB;
+      final creditorId = net > 0 ? userB : userA;
+      return {
+        'debtor_id': debtorId,
+        'debtor_name': nameMap[debtorId] ?? 'Unknown',
+        'creditor_id': creditorId,
+        'creditor_name': nameMap[creditorId] ?? 'Unknown',
+        'amount': net.abs(),
+      };
+    }).toList();
+  }
 }
