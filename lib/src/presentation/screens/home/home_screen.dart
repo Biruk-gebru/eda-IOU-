@@ -11,7 +11,6 @@ import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
 import '../notifications/notification_screen.dart';
 import '../personal/person_detail_screen.dart';
-import '../settlements/settlement_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
 import '../../widgets/neo_button.dart';
@@ -176,15 +175,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       sub: 'Ask to pay',
                       fill: colors.card,
                       onTap: () => _showRequestSheet(context),
-                    ),
-                    const SizedBox(width: 10),
-                    _actionTile(
-                      colors: colors,
-                      icon: Icons.swap_horiz_rounded,
-                      label: 'Settle',
-                      sub: 'Route a debt',
-                      fill: colors.card,
-                      onTap: () => _open(context, const SettlementScreen()),
                     ),
                   ],
                 ),
