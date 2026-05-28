@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:another_telephony/telephony.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SmsMatch {
   final String reference;
@@ -32,20 +35,18 @@ class _SmsPattern {
 
 class SmsParserService {
   static final _telephony = Telephony.instance;
+  static const _storage = FlutterSecureStorage();
+  static const _permKey = 'sms_permission_granted';
 
   // Zero-width / invisible Unicode characters that silently break keyword
   // matching even when text looks correct on screen.
-  // ​ ZWSP, ‌ ZWNJ, ‍ ZWJ, ﻿ BOM/ZWNBSP,
-  // ­ soft-hyphen, ⁠ word-joiner, ⁡-⁤ invisible operators
   static final _invisibleChars = RegExp(
     '[​‌‍﻿­⁠⁡⁢⁣⁤]',
   );
 
   // Non-breaking / narrow space variants — normalize to regular ASCII space.
-  //   NBSP,   narrow NBSP,   figure space,
-  //   punctuation space,   thin space
   static final _nbspChars = RegExp(
-    '[     ]',
+    '[     ]',
   );
 
   static final _patterns = <_SmsPattern>[
@@ -225,32 +226,74 @@ class SmsParserService {
     ),
   ];
 
+  /// Requests READ_SMS + PHONE permissions. Returns true if granted.
+  /// On non-Android devices returns false immediately without showing any dialog.
+  /// Caches the result so the system dialog is only ever shown once.
   Future<bool> requestPermission() async {
-    final granted = await _telephony.requestPhoneAndSmsPermissions;
-    return granted ?? false;
+    if (!Platform.isAndroid) return false;
+    final cached = await _storage.read(key: _permKey);
+    if (cached == 'true') return true;
+    final granted = await _telephony.requestPhoneAndSmsPermissions ?? false;
+    if (granted) await _storage.write(key: _permKey, value: 'true');
+    return granted;
   }
 
+  /// Searches for a DEBIT SMS matching [amount] from [bankType].
+  ///
+  /// [anchor] is the datetime the user says they sent the payment.
+  /// The search window is [anchor - before] to [anchor + after].
+  /// Defaults: 12 h before and 1 h after the anchor.
   Future<SmsMatch?> findDebitSms({
     required String bankType,
     required double amount,
-    Duration maxAge = const Duration(hours: 24),
-  }) =>
-      _scan(bankType: bankType, amount: amount, maxAge: maxAge, type: 'DEBIT');
+    required DateTime anchor,
+    Duration before = const Duration(hours: 12),
+    Duration after = const Duration(hours: 1),
+  }) {
+    if (!Platform.isAndroid) return Future.value(null);
+    return _scan(
+      bankType: bankType,
+      amount: amount,
+      type: 'DEBIT',
+      anchor: anchor,
+      before: before,
+      after: after,
+    );
+  }
 
+  /// Searches for a CREDIT SMS matching [amount] from [bankType].
+  ///
+  /// For the receiver confirming receipt, [anchor] defaults to now and
+  /// [before] defaults to 7 days (payment may have arrived days ago).
   Future<SmsMatch?> findCreditSms({
     required String bankType,
     required double amount,
-    Duration maxAge = const Duration(hours: 24),
-  }) =>
-      _scan(bankType: bankType, amount: amount, maxAge: maxAge, type: 'CREDIT');
+    DateTime? anchor,
+    Duration before = const Duration(days: 7),
+    Duration after = const Duration(hours: 1),
+  }) {
+    if (!Platform.isAndroid) return Future.value(null);
+    return _scan(
+      bankType: bankType,
+      amount: amount,
+      type: 'CREDIT',
+      anchor: anchor ?? DateTime.now(),
+      before: before,
+      after: after,
+    );
+  }
 
   Future<SmsMatch?> _scan({
     required String bankType,
     required double amount,
-    required Duration maxAge,
     required String type,
+    required DateTime anchor,
+    required Duration before,
+    required Duration after,
   }) async {
-    final cutoff = DateTime.now().subtract(maxAge).millisecondsSinceEpoch;
+    final lowerBound = anchor.subtract(before).millisecondsSinceEpoch;
+    final upperBound = anchor.add(after).millisecondsSinceEpoch;
+
     final messages = await _telephony.getInboxSms(
       columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
       sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
@@ -262,7 +305,8 @@ class SmsParserService {
 
     for (final sms in messages) {
       final date = sms.date ?? 0;
-      if (date < cutoff) break; // sorted DESC, once too old stop
+      if (date > upperBound) continue; // newer than anchor+after, skip
+      if (date < lowerBound) break;    // older than anchor-before, stop (DESC)
 
       final address = sms.address ?? '';
       final body = _sanitizeBody(sms.body ?? '');
@@ -306,15 +350,10 @@ class SmsParserService {
   }
 
   // Strips hidden characters from bank SMS bodies before regex matching.
-  // These characters are invisible on screen but break keyword matching.
   static String _sanitizeBody(String text) {
-    // 1. Remove zero-width spaces, BOM, soft hyphen, and invisible operators
     String s = text.replaceAll(_invisibleChars, '');
-    // 2. Normalize non-breaking / narrow spaces to regular ASCII space
     s = s.replaceAll(_nbspChars, ' ');
-    // 3. Normalize \r\n and lone \r to \n (dotAll handles \n fine)
     s = s.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-    // 4. Collapse runs of spaces and tabs to a single space
     s = s.replaceAll(RegExp(r'[ \t]+'), ' ');
     return s.trim();
   }
