@@ -1244,11 +1244,18 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
   final Map<String, String> _nameCache = {};
   SettlementAnim? _pendingAnim;
   Map<String, dynamic>? _pendingOpp;
+  final _scrollCtrl = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -1538,6 +1545,17 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
                 .clamp(0, double.infinity),
       );
     });
+
+    // Scroll to the graph so the user can watch the animation play.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          0,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _onAnimComplete() async {
@@ -1683,6 +1701,7 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
     return RefreshIndicator(
       onRefresh: () => _loadData(),
       child: ListView(
+        controller: _scrollCtrl,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(22, 24, 22, 40),
         children: [
