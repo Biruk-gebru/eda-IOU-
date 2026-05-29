@@ -11,6 +11,7 @@ import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
 import '../notifications/notification_screen.dart';
 import '../personal/person_detail_screen.dart';
+import '../personal/personal_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
 import '../../widgets/neo_button.dart';
@@ -156,25 +157,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // ── Action Tiles ───────────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
-                child: Row(
+                child: Column(
                   children: [
-                    _actionTile(
-                      colors: colors,
-                      icon: Icons.add,
-                      label: 'New IOU',
-                      sub: 'Split or charge',
-                      fill: colors.primary, // Accent
-                      onTap: () =>
-                          _open(context, const CreateTransactionScreen()),
+                    Row(
+                      children: [
+                        _actionTile(
+                          colors: colors,
+                          icon: Icons.add,
+                          label: 'New IOU',
+                          sub: 'Split or charge',
+                          fill: colors.primary,
+                          onTap: () =>
+                              _open(context, const CreateTransactionScreen()),
+                        ),
+                        const SizedBox(width: 10),
+                        _actionTile(
+                          colors: colors,
+                          icon: Icons.send_outlined,
+                          label: 'Request',
+                          sub: 'Ask to pay',
+                          fill: colors.card,
+                          onTap: () => _showRequestSheet(context),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    _actionTile(
+                    const SizedBox(height: 10),
+                    _wideTile(
                       colors: colors,
-                      icon: Icons.send_outlined,
-                      label: 'Request',
-                      sub: 'Ask to pay',
-                      fill: colors.card,
-                      onTap: () => _showRequestSheet(context),
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Balances',
+                      sub: 'Peer-to-peer debts',
+                      onTap: () => _open(context, const PersonalScreen()),
                     ),
                   ],
                 ),
@@ -316,6 +329,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _wideTile({
+    required FColors colors,
+    required IconData icon,
+    required String label,
+    required String sub,
+    required VoidCallback onTap,
+  }) {
+    return NeoButton(
+      onTap: onTap,
+      backgroundColor: colors.card,
+      borderColor: colors.foreground,
+      shadowOffset: 2.0,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Icon(icon, color: colors.foreground, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: context.theme.typography.lg.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: const Color(0xFF3A352A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(FIcons.chevronRight, size: 16, color: colors.foreground),
+        ],
       ),
     );
   }
