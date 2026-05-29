@@ -1600,7 +1600,7 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
             _sectionLabel('GROUP DEBTS', colors),
             const SizedBox(height: 12),
             Container(
-              height: 240,
+              height: 280,
               decoration: BoxDecoration(
                 color: colors.card,
                 border: Border.all(color: colors.foreground, width: 1.5),
