@@ -1298,24 +1298,73 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
     }
   }
 
-  // C owes Me + Me owes B → C can pay B directly
+  // BFS depth-2 through Me:
+  //   1-hop:  C → Me → B         (C pays B directly)
+  //   2-hop:  D → C → Me → B     (D pays B directly, via C)
+  // Everyone's total obligation stays the same — only who they owe changes.
   List<Map<String, dynamic>> _opportunities(String myId) {
     final owedToMe = _debts.where((d) => d['creditor_id'] == myId).toList();
-    final iOwe = _debts.where((d) => d['debtor_id'] == myId).toList();
-    final result = <Map<String, dynamic>>[];
-    for (final credit in owedToMe) {
-      for (final debt in iOwe) {
-        final cOwesMe = credit['amount'] as double;
-        final iOweB = debt['amount'] as double;
+    final iOwe    = _debts.where((d) => d['debtor_id']   == myId).toList();
+    final result  = <Map<String, dynamic>>[];
+
+    double _min(List<double> v) => v.reduce((a, b) => a < b ? a : b);
+
+    for (final meDebt in iOwe) {
+      final receiverId   = meDebt['creditor_id']   as String;
+      final receiverName = meDebt['creditor_name'] as String;
+      final meOwesB      = meDebt['amount']        as double;
+
+      for (final theirDebt in owedToMe) {
+        final cId      = theirDebt['debtor_id']   as String;
+        final cName    = theirDebt['debtor_name'] as String;
+        final cOwesMe  = theirDebt['amount']      as double;
+
+        // ── 1-hop: C → Me → B ─────────────────────────────────────────────
         result.add({
-          'payer_id': credit['debtor_id'],
-          'payer_name': credit['debtor_name'],
-          'receiver_id': debt['creditor_id'],
-          'receiver_name': debt['creditor_name'],
-          'c_owes_me': cOwesMe,
-          'i_owe_b': iOweB,
-          'amount': cOwesMe < iOweB ? cOwesMe : iOweB,
+          'payer_id':     cId,
+          'payer_name':   cName,
+          'receiver_id':  receiverId,
+          'receiver_name': receiverName,
+          'c_owes_me':    cOwesMe,
+          'i_owe_b':      meOwesB,
+          'amount':       _min([cOwesMe, meOwesB]),
+          'via_id':       null,
+          'via_name':     null,
+          // Ordered chain of edges to reduce
+          'chain': [
+            {'debtor_id': cId,  'creditor_id': myId},
+            {'debtor_id': myId, 'creditor_id': receiverId},
+          ],
         });
+
+        // ── 2-hop: D → C → Me → B ─────────────────────────────────────────
+        final owesC = _debts.where((d) =>
+            d['creditor_id'] == cId &&
+            d['debtor_id']   != myId &&
+            d['debtor_id']   != receiverId).toList();
+
+        for (final dDebt in owesC) {
+          final dId     = dDebt['debtor_id']   as String;
+          final dName   = dDebt['debtor_name'] as String;
+          final dOwesC  = dDebt['amount']      as double;
+          result.add({
+            'payer_id':     dId,
+            'payer_name':   dName,
+            'receiver_id':  receiverId,
+            'receiver_name': receiverName,
+            'd_owes_c':     dOwesC,
+            'c_owes_me':    cOwesMe,
+            'i_owe_b':      meOwesB,
+            'amount':       _min([dOwesC, cOwesMe, meOwesB]),
+            'via_id':       cId,
+            'via_name':     cName,
+            'chain': [
+              {'debtor_id': dId,  'creditor_id': cId},
+              {'debtor_id': cId,  'creditor_id': myId},
+              {'debtor_id': myId, 'creditor_id': receiverId},
+            ],
+          });
+        }
       }
     }
     return result;
@@ -1350,7 +1399,7 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
                       color: colors.foreground)),
               const SizedBox(height: 6),
               Text(
-                'This will immediately update the balances — no approval needed.',
+                'Balances update immediately — no approval needed.',
                 style: GoogleFonts.inter(
                     fontSize: 13, color: colors.mutedForeground),
               ),
@@ -1363,12 +1412,19 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
                 ),
                 child: Column(
                   children: [
-                    _labelAmountRow('${opp['payer_name']} owes you',
+                    // Show full chain
+                    if (opp['via_name'] != null) ...[
+                      _labelAmountRow(
+                          '${opp['payer_name']} owes ${opp['via_name']}',
+                          _fmt.format(opp['d_owes_c']), colors, typo),
+                      Container(margin: const EdgeInsets.symmetric(vertical: 8), height: 1, color: colors.foreground.withValues(alpha: 0.12)),
+                    ],
+                    _labelAmountRow('${opp['via_name'] ?? opp['payer_name']} owes you',
                         _fmt.format(opp['c_owes_me']), colors, typo),
                     Container(
-                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        margin: const EdgeInsets.symmetric(vertical: 8),
                         height: 1,
-                        color: colors.foreground.withValues(alpha: 0.15)),
+                        color: colors.foreground.withValues(alpha: 0.12)),
                     _labelAmountRow('You owe ${opp['receiver_name']}',
                         _fmt.format(opp['i_owe_b']), colors, typo),
                     Container(
@@ -1444,15 +1500,18 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
 
     if (confirmed != true || !mounted) return;
 
-    // Pre-compute how each edge changes, then let the graph animate it.
-    // The actual backend call fires in _onAnimComplete after the animation.
+    // Pre-compute animation. For 2-hop (D→C→Me→B), C is the node
+    // visible in the graph (D is not a direct edge of mine), so use C
+    // as the animation's "payer" anchor.
     final myId =
         ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
     final routedAmount = opp['amount'] as double;
+    final visiblePayerId =
+        opp['via_id'] as String? ?? opp['payer_id'] as String;
 
     final payerDebt = _debts.firstWhere(
       (d) =>
-          d['debtor_id'] == opp['payer_id'] && d['creditor_id'] == myId,
+          d['debtor_id'] == visiblePayerId && d['creditor_id'] == myId,
       orElse: () => {'amount': routedAmount},
     );
     final receiverDebt = _debts.firstWhere(
@@ -1464,10 +1523,10 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
     setState(() {
       _pendingOpp = opp;
       _pendingAnim = SettlementAnim(
-        transitFrom: opp['payer_id'] as String,
+        transitFrom: visiblePayerId,
         transitTo: opp['receiver_id'] as String,
         routedAmount: routedAmount,
-        payerEdgeDebtor: opp['payer_id'] as String,
+        payerEdgeDebtor: visiblePayerId,
         payerEdgeCreditor: myId,
         payerNewAmount:
             ((payerDebt['amount'] as num).toDouble() - routedAmount)
@@ -1484,14 +1543,14 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
   Future<void> _onAnimComplete() async {
     final opp = _pendingOpp;
     if (opp == null || !mounted) return;
-    final myId =
-        ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
     try {
-      await ref.read(settlementRepositoryProvider).applyDebtRouting(
-            payerId: opp['payer_id'] as String,
-            myId: myId,
-            receiverId: opp['receiver_id'] as String,
-            routedAmount: opp['amount'] as double,
+      final chain = (opp['chain'] as List)
+          .cast<Map<String, dynamic>>()
+          .map((e) => {'debtor_id': e['debtor_id'] as String, 'creditor_id': e['creditor_id'] as String})
+          .toList();
+      await ref.read(settlementRepositoryProvider).applyDebtRoutingChain(
+            chain: chain,
+            amount: opp['amount'] as double,
           );
       if (mounted) {
         setState(() {
@@ -1750,7 +1809,14 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _labelAmountRow('${opp['payer_name']} owes you',
+                if (opp['via_name'] != null) ...[
+                  _labelAmountRow(
+                      '${opp['payer_name']} owes ${opp['via_name']}',
+                      _fmt.format(opp['d_owes_c']), colors, typo),
+                  const SizedBox(height: 6),
+                ],
+                _labelAmountRow(
+                    '${opp['via_name'] ?? opp['payer_name']} owes you',
                     _fmt.format(opp['c_owes_me']), colors, typo),
                 const SizedBox(height: 6),
                 _labelAmountRow('You owe ${opp['receiver_name']}',
@@ -1764,7 +1830,9 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Ask ${opp['payer_name']} to pay ${opp['receiver_name']} directly',
+                        opp['via_name'] != null
+                            ? '${opp['payer_name']} → ${opp['receiver_name']} via ${opp['via_name']}'
+                            : '${opp['payer_name']} → ${opp['receiver_name']} directly',
                         style: GoogleFonts.inter(
                             fontSize: 12, color: colors.mutedForeground),
                       ),
