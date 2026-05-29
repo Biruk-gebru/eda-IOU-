@@ -51,8 +51,13 @@ class DebtGraph extends StatelessWidget {
       final w = constraints.maxWidth;
       final h = constraints.maxHeight;
       const nodeRadius = 22.0;
-      final graphRadius = min(w, h) * 0.30;
-      final center = Offset(w / 2, h / 2);
+      final n = nodeIds.length;
+      // Minimum radius that keeps adjacent node edges ≥ 12 px apart.
+      final minR = (nodeRadius + 12) / sin(pi / n);
+      // Allow up to 42 % of the shorter axis, but never less than minR.
+      final graphRadius = min(max(minR, min(w, h) * 0.28), min(w, h) * 0.42);
+      // Shift centre up so the bottom-node label doesn't clip.
+      final center = Offset(w / 2, h / 2 - 10);
 
       final positions = List.generate(nodeIds.length, (i) {
         final angle = 2 * pi * i / nodeIds.length - pi / 2;
