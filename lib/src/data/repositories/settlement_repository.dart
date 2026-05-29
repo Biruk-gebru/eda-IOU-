@@ -131,20 +131,20 @@ class SettlementRepository {
     });
   }
 
-  /// Directly applies debt routing: reduces C→Me and Me→B balances by
-  /// [routedAmount] in a single atomic DB transaction (SECURITY DEFINER RPC).
-  /// No settlement_request record is created — the change is immediate.
-  Future<void> applyDebtRouting({
-    required String payerId,
-    required String myId,
-    required String receiverId,
-    required double routedAmount,
+  /// Applies debt routing along an arbitrary chain of edges, each reduced by
+  /// [amount]. Every person's total obligation stays the same — only who they
+  /// owe changes. Changes are immediate and atomic (SECURITY DEFINER RPC).
+  ///
+  /// [chain] is an ordered list of {debtor_id, creditor_id} maps, e.g.:
+  ///   1-hop  C→Me→B : [{C,Me}, {Me,B}]
+  ///   2-hop D→C→Me→B: [{D,C}, {C,Me}, {Me,B}]
+  Future<void> applyDebtRoutingChain({
+    required List<Map<String, String>> chain,
+    required double amount,
   }) async {
-    await _client.rpc('apply_debt_routing', params: {
-      'p_payer_id': payerId,
-      'p_my_id': myId,
-      'p_receiver_id': receiverId,
-      'p_amount': routedAmount,
+    await _client.rpc('apply_debt_routing_chain', params: {
+      'p_edges': chain,
+      'p_amount': amount,
     });
   }
 
