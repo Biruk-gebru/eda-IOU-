@@ -111,6 +111,10 @@ class _DebtGraphState extends State<DebtGraph>
     int toIdx, {
     double nodeRadius = 22.0,
     bool transitCurve = false,
+    // Where along the bezier (0=from-node, 1=to-node) to anchor the amount label.
+    // Use 0.85 for outgoing-from-me edges (label near recipient node)
+    // and 0.15 for incoming-to-me edges (label near sender node).
+    double labelT = 0.5,
   }) {
     final from = positions[fromIdx];
     final to = positions[toIdx];
@@ -135,16 +139,18 @@ class _DebtGraphState extends State<DebtGraph>
     final s = transitCurve ? 1.0 : -1.0;
     final control =
         Offset(mid.dx + s * ny * curvature, mid.dy - s * nx * curvature);
-    const t = 0.5;
-    final bx = (1 - t) * (1 - t) * start.dx +
-        2 * (1 - t) * t * control.dx +
-        t * t * end.dx;
-    final by = (1 - t) * (1 - t) * start.dy +
-        2 * (1 - t) * t * control.dy +
-        t * t * end.dy;
+    // Edge bezier evaluated at labelT for label anchor.
+    final lt = labelT;
+    final bx = (1 - lt) * (1 - lt) * start.dx +
+        2 * (1 - lt) * lt * control.dx +
+        lt * lt * end.dx;
+    final by = (1 - lt) * (1 - lt) * start.dy +
+        2 * (1 - lt) * lt * control.dy +
+        lt * lt * end.dy;
+    // Small perpendicular nudge (0.15×) to separate label from the line.
     final labelPos = Offset(
-      bx + s * ny * curvature * 0.35,
-      by - s * nx * curvature * 0.35,
+      bx + s * ny * curvature * 0.15,
+      by - s * nx * curvature * 0.15,
     );
     return _EdgeGeom(
         start: start, end: end, control: control, labelPos: labelPos);
@@ -222,10 +228,14 @@ class _DebtGraphState extends State<DebtGraph>
           );
         });
 
-        final edgeGeom = edges
-            .map((e) =>
-                _buildGeom(positions, e.from, e.to, nodeRadius: nodeR))
-            .toList();
+        final edgeGeom = edges.map((e) {
+          // Anchor label near the peripheral (non-me) node to avoid
+          // convergence at the Me node and inter-label collisions.
+          final lt =
+              e.debtorId == widget.myId ? 0.85 : 0.15;
+          return _buildGeom(positions, e.from, e.to,
+              nodeRadius: nodeR, labelT: lt);
+        }).toList();
 
         // ── Animation staging ──────────────────────────────────────────────────
         // 0.00 – 0.45 → transit dot moves C → B
