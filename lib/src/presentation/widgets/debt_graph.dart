@@ -229,12 +229,10 @@ class _DebtGraphState extends State<DebtGraph>
         });
 
         final edgeGeom = edges.map((e) {
-          // Anchor label near the peripheral (non-me) node to avoid
-          // convergence at the Me node and inter-label collisions.
-          final lt =
-              e.debtorId == widget.myId ? 0.85 : 0.15;
+          // Anchor label at t=0.20 — near the debtor (source) node,
+          // well clear of the arrowhead at t=1.0.
           return _buildGeom(positions, e.from, e.to,
-              nodeRadius: nodeR, labelT: lt);
+              nodeRadius: nodeR, labelT: 0.20);
         }).toList();
 
         // ── Animation staging ──────────────────────────────────────────────────
@@ -363,7 +361,8 @@ class _DebtGraphState extends State<DebtGraph>
                 ),
               ),
 
-            // Existing edge amount labels (fade + count down during animation)
+            // Edge amount labels — no background so nothing is obscured.
+            // Soft shadow gives readability against any background.
             ...edgeGeom.asMap().entries.map((entry) {
               final i = entry.key;
               final eg = entry.value;
@@ -371,28 +370,25 @@ class _DebtGraphState extends State<DebtGraph>
               if (alpha <= 0.01) return const SizedBox.shrink();
               return Positioned(
                 left: eg.labelPos.dx - 34,
-                top: eg.labelPos.dy - 11,
+                top: eg.labelPos.dy - 8,
                 width: 68,
                 child: Opacity(
-                  opacity: alpha.clamp(0.0, 1.0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: colors.background,
-                      border:
-                          Border.all(color: colors.foreground, width: 1),
+                  opacity: (alpha * 0.9).clamp(0.0, 1.0),
+                  child: Text(
+                    DebtGraph._fmt.format(edgeLabel(i)),
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      color: colors.foreground,
+                      shadows: [
+                        Shadow(
+                            color: colors.background, blurRadius: 4),
+                        Shadow(
+                            color: colors.background, blurRadius: 4),
+                      ],
                     ),
-                    child: Text(
-                      DebtGraph._fmt.format(edgeLabel(i)),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        color: colors.foreground,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
                   ),
                 ),
               );
@@ -402,27 +398,25 @@ class _DebtGraphState extends State<DebtGraph>
             if (anim != null && transitGeom != null && transitT > 0.3)
               Positioned(
                 left: transitGeom.labelPos.dx - 34,
-                top: transitGeom.labelPos.dy - 14,
+                top: transitGeom.labelPos.dy - 8,
                 width: 68,
                 child: Opacity(
                   opacity: ((transitT - 0.3) / 0.35).clamp(0.0, 1.0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: colors.primary.withValues(alpha: 0.15),
-                      border: Border.all(color: colors.primary, width: 1),
+                  child: Text(
+                    DebtGraph._fmt.format(anim.routedAmount),
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      color: colors.primary,
+                      shadows: [
+                        Shadow(
+                            color: colors.background, blurRadius: 4),
+                        Shadow(
+                            color: colors.background, blurRadius: 4),
+                      ],
                     ),
-                    child: Text(
-                      DebtGraph._fmt.format(anim.routedAmount),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        color: colors.foreground,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
                   ),
                 ),
               ),
