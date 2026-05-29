@@ -131,6 +131,23 @@ class SettlementRepository {
     });
   }
 
+  /// Directly applies debt routing: reduces C→Me and Me→B balances by
+  /// [routedAmount] in a single atomic DB transaction (SECURITY DEFINER RPC).
+  /// No settlement_request record is created — the change is immediate.
+  Future<void> applyDebtRouting({
+    required String payerId,
+    required String myId,
+    required String receiverId,
+    required double routedAmount,
+  }) async {
+    await _client.rpc('apply_debt_routing', params: {
+      'p_payer_id': payerId,
+      'p_my_id': myId,
+      'p_receiver_id': receiverId,
+      'p_amount': routedAmount,
+    });
+  }
+
   Future<void> rejectSettlement(String settlementRequestId) async {
     await _client.from('settlement_requests').update({
       'status': 'rejected',
