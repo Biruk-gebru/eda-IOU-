@@ -229,10 +229,13 @@ class _DebtGraphState extends State<DebtGraph>
         });
 
         final edgeGeom = edges.map((e) {
-          // Anchor label at t=0.20 — near the debtor (source) node,
-          // well clear of the arrowhead at t=1.0.
+          // Outgoing (Me→X, I am debtor): anchor past the midpoint toward X.
+          //   This spreads labels out — multiple outgoing edges won't cluster near Me.
+          // Incoming (X→Me, X is debtor): anchor near X (the sender node).
+          //   These are already spread since each X is a different peripheral node.
+          final lt = e.debtorId == widget.myId ? 0.55 : 0.20;
           return _buildGeom(positions, e.from, e.to,
-              nodeRadius: nodeR, labelT: 0.20);
+              nodeRadius: nodeR, labelT: lt);
         }).toList();
 
         // ── Animation staging ──────────────────────────────────────────────────
