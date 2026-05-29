@@ -1242,6 +1242,8 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
   bool _loading = true;
   String? _error;
   final Map<String, String> _nameCache = {};
+  SettlementAnim? _pendingAnim;
+  Map<String, dynamic>? _pendingOpp;
 
   @override
   void initState() {
@@ -1442,6 +1444,46 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
 
     if (confirmed != true || !mounted) return;
 
+    // Pre-compute how each edge changes, then let the graph animate it.
+    // The actual backend call fires in _onAnimComplete after the animation.
+    final myId =
+        ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
+    final routedAmount = opp['amount'] as double;
+
+    final payerDebt = _debts.firstWhere(
+      (d) =>
+          d['debtor_id'] == opp['payer_id'] && d['creditor_id'] == myId,
+      orElse: () => {'amount': routedAmount},
+    );
+    final receiverDebt = _debts.firstWhere(
+      (d) =>
+          d['debtor_id'] == myId && d['creditor_id'] == opp['receiver_id'],
+      orElse: () => {'amount': routedAmount},
+    );
+
+    setState(() {
+      _pendingOpp = opp;
+      _pendingAnim = SettlementAnim(
+        transitFrom: opp['payer_id'] as String,
+        transitTo: opp['receiver_id'] as String,
+        routedAmount: routedAmount,
+        payerEdgeDebtor: opp['payer_id'] as String,
+        payerEdgeCreditor: myId,
+        payerNewAmount:
+            ((payerDebt['amount'] as num).toDouble() - routedAmount)
+                .clamp(0, double.infinity),
+        receiverEdgeDebtor: myId,
+        receiverEdgeCreditor: opp['receiver_id'] as String,
+        receiverNewAmount:
+            ((receiverDebt['amount'] as num).toDouble() - routedAmount)
+                .clamp(0, double.infinity),
+      );
+    });
+  }
+
+  Future<void> _onAnimComplete() async {
+    final opp = _pendingOpp;
+    if (opp == null || !mounted) return;
     try {
       await ref.read(settlementRepositoryProvider).createSettlementRequest(
             payerId: opp['payer_id'] as String,
@@ -1449,13 +1491,23 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
             amount: opp['amount'] as double,
           );
       if (mounted) {
+        setState(() {
+          _pendingAnim = null;
+          _pendingOpp = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Route request sent to ${opp['payer_name']}')),
+          SnackBar(
+              content:
+                  Text('Route request sent to ${opp['payer_name']}')),
         );
         _loadData();
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _pendingAnim = null;
+          _pendingOpp = null;
+        });
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
@@ -1610,7 +1662,12 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
                 ],
               ),
               padding: const EdgeInsets.all(16),
-              child: DebtGraph(debts: _debts, myId: myId),
+              child: DebtGraph(
+                debts: _debts,
+                myId: myId,
+                pending: _pendingAnim,
+                onAnimationComplete: _onAnimComplete,
+              ),
             ),
             const SizedBox(height: 32),
           ],
@@ -1726,7 +1783,7 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
             ),
           ),
           GestureDetector(
-            onTap: () => _confirmAndRoute(opp),
+            onTap: _pendingAnim == null ? () => _confirmAndRoute(opp) : null,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14),
