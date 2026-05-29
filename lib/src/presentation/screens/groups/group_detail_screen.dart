@@ -1343,14 +1343,14 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Redirect Debt',
+              Text('Confirm Routing',
                   style: typo.lg.copyWith(
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
                       color: colors.foreground)),
               const SizedBox(height: 6),
               Text(
-                'This will ask ${opp['payer_name']} to pay ${opp['receiver_name']} directly.',
+                'This will immediately update the balances — no approval needed.',
                 style: GoogleFonts.inter(
                     fontSize: 13, color: colors.mutedForeground),
               ),
@@ -1415,7 +1415,7 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
                     ],
                   ),
                   alignment: Alignment.center,
-                  child: Text('Send Route Request',
+                  child: Text('Confirm',
                       style: typo.sm.copyWith(
                           fontWeight: FontWeight.w600,
                           color: colors.foreground)),
@@ -1484,11 +1484,14 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
   Future<void> _onAnimComplete() async {
     final opp = _pendingOpp;
     if (opp == null || !mounted) return;
+    final myId =
+        ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
     try {
-      await ref.read(settlementRepositoryProvider).createSettlementRequest(
+      await ref.read(settlementRepositoryProvider).applyDebtRouting(
             payerId: opp['payer_id'] as String,
+            myId: myId,
             receiverId: opp['receiver_id'] as String,
-            amount: opp['amount'] as double,
+            routedAmount: opp['amount'] as double,
           );
       if (mounted) {
         setState(() {
@@ -1496,9 +1499,7 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
           _pendingOpp = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text('Route request sent to ${opp['payer_name']}')),
+          const SnackBar(content: Text('Debt routed — balances updated')),
         );
         _loadData();
       }
