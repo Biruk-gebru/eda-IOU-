@@ -1243,7 +1243,6 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
   String? _error;
   final Map<String, String> _nameCache = {};
   SettlementAnim? _pendingAnim;
-  Map<String, dynamic>? _pendingOpp;
   final _scrollCtrl = ScrollController();
 
   @override
@@ -1383,6 +1382,7 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
 
     final confirmed = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(22),
@@ -1507,89 +1507,142 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
 
     if (confirmed != true || !mounted) return;
 
-    // Pre-compute animation. For 2-hop (D→C→Me→B), C is the node
-    // visible in the graph (D is not a direct edge of mine), so use C
-    // as the animation's "payer" anchor.
-    final myId =
-        ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
-    final routedAmount = opp['amount'] as double;
-    final visiblePayerId =
-        opp['via_id'] as String? ?? opp['payer_id'] as String;
-
-    final payerDebt = _debts.firstWhere(
-      (d) =>
-          d['debtor_id'] == visiblePayerId && d['creditor_id'] == myId,
-      orElse: () => {'amount': routedAmount},
-    );
-    final receiverDebt = _debts.firstWhere(
-      (d) =>
-          d['debtor_id'] == myId && d['creditor_id'] == opp['receiver_id'],
-      orElse: () => {'amount': routedAmount},
-    );
-
-    setState(() {
-      _pendingOpp = opp;
-      _pendingAnim = SettlementAnim(
-        transitFrom: visiblePayerId,
-        transitTo: opp['receiver_id'] as String,
-        routedAmount: routedAmount,
-        payerEdgeDebtor: visiblePayerId,
-        payerEdgeCreditor: myId,
-        payerNewAmount:
-            ((payerDebt['amount'] as num).toDouble() - routedAmount)
-                .clamp(0, double.infinity),
-        receiverEdgeDebtor: myId,
-        receiverEdgeCreditor: opp['receiver_id'] as String,
-        receiverNewAmount:
-            ((receiverDebt['amount'] as num).toDouble() - routedAmount)
-                .clamp(0, double.infinity),
-      );
-    });
-
-    // Scroll to the graph so the user can watch the animation play.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(
-          0,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  Future<void> _onAnimComplete() async {
-    final opp = _pendingOpp;
-    if (opp == null || !mounted) return;
     try {
-      final chain = (opp['chain'] as List)
-          .cast<Map<String, dynamic>>()
-          .map((e) => {'debtor_id': e['debtor_id'] as String, 'creditor_id': e['creditor_id'] as String})
+      // Pre-compute animation. For 2-hop (D→C→Me→B), C is the node
+      // visible in the graph — use C as the animation "payer" anchor.
+      final myId =
+          ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
+      final routedAmount = (opp['amount'] as num).toDouble();
+      final visiblePayerId =
+          opp['via_id'] as String? ?? opp['payer_id'] as String;
+
+      final payerMatches = _debts.where((d) =>
+          d['debtor_id'] == visiblePayerId && d['creditor_id'] == myId);
+      final payerCurrentAmount = payerMatches.isNotEmpty
+          ? (payerMatches.first['amount'] as num).toDouble()
+          : routedAmount;
+
+      final receiverMatches = _debts.where((d) =>
+          d['debtor_id'] == myId &&
+          d['creditor_id'] == opp['receiver_id']);
+      final receiverCurrentAmount = receiverMatches.isNotEmpty
+          ? (receiverMatches.first['amount'] as num).toDouble()
+          : routedAmount;
+
+      setState(() {
+        _pendingAnim = SettlementAnim(
+          transitFrom: visiblePayerId,
+          transitTo: opp['receiver_id'] as String,
+          routedAmount: routedAmount,
+          payerEdgeDebtor: visiblePayerId,
+          payerEdgeCreditor: myId,
+          payerNewAmount:
+              (payerCurrentAmount - routedAmount).clamp(0, double.infinity),
+          receiverEdgeDebtor: myId,
+          receiverEdgeCreditor: opp['receiver_id'] as String,
+          receiverNewAmount:
+              (receiverCurrentAmount - routedAmount).clamp(0, double.infinity),
+        );
+      });
+
+      // Scroll to graph so the user sees the animation.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollCtrl.hasClients) {
+          _scrollCtrl.animateTo(
+            0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+
+      // Build the chain inside the try block so any type errors are caught.
+      final chain = (opp['chain'] as List<dynamic>)
+          .map((e) {
+            final m = e as Map;
+            return <String, dynamic>{
+              'debtor_id': m['debtor_id'] as String,
+              'creditor_id': m['creditor_id'] as String,
+            };
+          })
           .toList();
+
       await ref.read(settlementRepositoryProvider).applyDebtRoutingChain(
             chain: chain,
-            amount: opp['amount'] as double,
+            amount: routedAmount,
           );
+
+      // Update _debts in memory so the graph is correct the moment the
+      // animation ends — no loading spinner needed.
+      _applyRoutingInMemory(opp['chain'] as List<dynamic>, routedAmount);
+
       if (mounted) {
-        setState(() {
-          _pendingAnim = null;
-          _pendingOpp = null;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Debt routed — balances updated')),
         );
-        _loadData();
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('_confirmAndRoute error: $e\n$st');
       if (mounted) {
-        setState(() {
-          _pendingAnim = null;
-          _pendingOpp = null;
-        });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => _pendingAnim = null);
+        showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Routing failed'),
+            content: Text(e.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
       }
     }
+  }
+
+  // Reduce chain edges in _debts locally so the graph is already correct
+  // when the animation ends — no spinner, no flash.
+  void _applyRoutingInMemory(List<dynamic> chain, double amount) {
+    final updated = _debts
+        .map((d) => Map<String, dynamic>.from(d))
+        .toList();
+    for (final edge in chain) {
+      final m = edge as Map;
+      final debtorId = m['debtor_id'] as String;
+      final creditorId = m['creditor_id'] as String;
+      final idx = updated.indexWhere(
+        (d) => d['debtor_id'] == debtorId && d['creditor_id'] == creditorId,
+      );
+      if (idx >= 0) {
+        final newAmt = (updated[idx]['amount'] as num).toDouble() - amount;
+        if (newAmt <= 0) {
+          updated.removeAt(idx);
+        } else {
+          updated[idx]['amount'] = newAmt;
+        }
+      }
+    }
+    if (mounted) setState(() => _debts = updated);
+  }
+
+  // Called by DebtGraph when the animation finishes.
+  // _debts is already correct from _applyRoutingInMemory, so just clear the
+  // animation and do a silent background refresh to confirm DB state.
+  void _onAnimComplete() {
+    if (!mounted) return;
+    setState(() => _pendingAnim = null);
+    _silentRefresh();
+  }
+
+  Future<void> _silentRefresh() async {
+    try {
+      final balances = await ref
+          .read(settlementRepositoryProvider)
+          .getGroupNetBalances(widget.groupId);
+      if (mounted) setState(() => _debts = balances);
+    } catch (_) {}
   }
 
   Future<void> _approveSettlement(SettlementRequest settlement) async {
