@@ -1,80 +1,127 @@
-# EDA — Split expenses, track debts, get paid back.
+# EDA
 
-EDA is a mobile app that makes it easy to track who owes whom in your friend group, dorm, or household. Create shared expenses, request payments, and settle debts automatically — all in Ethiopian Birr.
+**Split expenses. Track debts. Get paid back.**
+
+EDA is a Flutter-based mobile app for tracking shared expenses and settling debts within friend groups, dorms, or households — built for the Ethiopian market with support for CBE, Telebirr, and Zemen bank verification.
 
 <p align="center">
-  <a href="https://github.com/Biruk-gebru/eda-IOU-/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Biruk-gebru/eda-IOU-?label=Download%20APK&logo=android&color=3DDC84" alt="Download APK" />
-  </a>
+  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="Version" />
   <img src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android" alt="Android" />
   <img src="https://img.shields.io/badge/built%20with-Flutter-02569B?logo=flutter" alt="Flutter" />
-</p>
-
-> **Install:** Download the APK from the badge above → open it on your Android device → allow "Install unknown apps" if prompted.
-
----
-
-## Screenshots
-
-<p align="center">
-  <img src="screenshots/home.png" width="18%" alt="Home" />
-  <img src="screenshots/groups.png" width="18%" alt="Groups" />
-  <img src="screenshots/personal.png" width="18%" alt="Personal" />
-  <img src="screenshots/stats.png" width="18%" alt="Stats" />
-  <img src="screenshots/settings.png" width="18%" alt="Settings" />
+  <img src="https://img.shields.io/badge/backend-Supabase-3ECF8E?logo=supabase" alt="Supabase" />
 </p>
 
 ---
 
-## What you can do
+## Features
 
-### Home
-See your overall balance at a glance — how much you owe and how much others owe you. From here you can start a new expense, request payment from someone who owes you, or jump straight to your balances.
+### Expense splitting
+Create an expense, add the people involved, and split it equally or by custom amounts. Everyone gets notified instantly. Balances update in real time across all devices.
 
-### Groups
-Create shared expense groups for your dorm, housemates, or any recurring situation. Invite friends by searching their name — they receive an invitation and can accept or decline. Once in a group, any member can log an expense and split it equally or by any amount.
+### Group debt management
+Organize recurring expenses into groups — rent, groceries, trips. Each group has a live **debt graph** that visualizes who owes whom with directed arrows and amounts. When a chain exists (Abel owes you, you owe Meron), EDA surfaces a **"Route It"** option: Abel pays Meron directly, two debts clear in one tap, and the graph animates the change.
 
-Each group has a **Settle tab** with a live debt graph: directed arrows show exactly who owes whom and how much. When there's an indirect debt chain — say Abel owes you, and you owe Meron — EDA surfaces a "Route It" option so Abel can pay Meron directly. Two debts clear in one action, and the graph animates the change in real time.
+### SMS-verified payments
+When marking a payment as sent, EDA scans your SMS inbox for the matching bank transaction (CBE, Telebirr, or Zemen) and attaches the reference automatically. You pick the send time from a date picker with a 12-hour window, and each reference can only be used once — duplicates are rejected.
 
-### Personal
-See every person you have an open balance with. Tap any name to see the full history between you two, request payment, or confirm a payment they've marked as sent. When marking a payment as sent, EDA scans your SMS inbox for the matching bank transaction and attaches the reference automatically.
+### Smart settlement routing
+EDA uses BFS depth-2 routing to find indirect payment paths through your group. Instead of everyone paying everyone, debts are routed through intermediaries — fewer transfers, faster settlement, no money passing through middlemen.
 
-### Stats
-A quick financial overview: total transactions, active balances, a donut chart of what you owe vs. what's owed to you, and a monthly spending bar chart.
-
-### Settings
-Switch between light and dark mode, toggle push notifications, and manage your profile and banking info so others know how to pay you back. Bank account numbers are copyable with one tap.
+### Real-time sync
+All balances, payment statuses, and group memberships sync in real time via Supabase subscriptions. When someone confirms a payment on their phone, your balance updates immediately.
 
 ---
 
-## How typical flows work
+## Tech stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Flutter (Dart) |
+| Architecture | Clean Architecture (domain / data / presentation) |
+| State management | Riverpod |
+| Backend | Supabase (Auth, Postgres, Realtime, RPC) |
+| Auth | Email/password, Google OAuth |
+| Notifications | Local + push via `flutter_local_notifications` |
+| SMS parsing | Regex-based parser for CBE, Telebirr, Zemen |
+| UI style | Neo-brutalist with dark mode support |
+
+---
+
+## Project structure
+
+```
+lib/src/
+  core/           — constants, DI, providers, services, utils
+  data/           — remote datasources and repository implementations
+  domain/         — entities and business logic
+  presentation/
+    controllers/  — UI controllers
+    providers/    — Riverpod providers
+    screens/      — auth, home, groups, personal, payments,
+                    settlements, stats, settings, notifications
+    widgets/      — debt graph, neo button, sparkline, skeleton loaders
+```
+
+---
+
+## Getting started
+
+### Prerequisites
+- Flutter SDK (3.x+)
+- Android Studio or VS Code with Flutter extension
+- A Supabase project with Auth, Realtime, and RPC enabled
+
+### Setup
+
+```bash
+git clone https://github.com/Biruk-gebru/eda-IOU-private.git
+cd eda-IOU-private
+```
+
+Create a `.env` file in the project root:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+```
+
+Then run:
+
+```bash
+flutter pub get
+flutter run
+```
+
+---
+
+## How it works
 
 ### Splitting an expense
-1. **You pay for dinner** → tap "New IOU", add the people at the table, enter the total, split equally. Everyone gets notified.
-2. **Your friend marks it paid** → they open Personal, find your name, select the amount they sent, and submit. EDA finds the matching Telebirr or CBE SMS and attaches the reference.
-3. **You confirm** → you get a notification, open the request, tap Confirm. The balance updates instantly.
-4. **Balance hits zero** → the person disappears from your list automatically.
+1. Tap **New IOU**, add the people involved, enter the total, and choose equal or custom split.
+2. Everyone gets notified. Balances update instantly.
 
-### Routing a debt through the group
-1. Abel owes you 80 ETB. You owe Meron 120 ETB.
-2. Open the group's Settle tab — the debt graph shows the chain.
-3. Tap "Route It" → confirm the amount → EDA calls Abel's side and Meron's side simultaneously. Both edges reduce by the routed amount.
-4. No money moves through you. No manual transfers needed.
+### Settling a debt
+1. Open **Personal**, find the person, and mark the payment as sent.
+2. EDA scans your SMS for the matching bank transaction and attaches the reference.
+3. The other person confirms receipt. Balance drops to zero.
 
----
-
-## SMS verification
-
-When marking a payment as sent, EDA searches your SMS inbox for a transaction from the same bank at roughly the time you sent it. You pick the send time from a date picker (±12 h window) so a payment sent yesterday still matches. Each bank reference can only be used once — EDA rejects duplicates automatically.
+### Routing through a group
+1. Open the group's **Settle** tab — the debt graph shows all edges.
+2. EDA highlights routing opportunities where indirect paths exist.
+3. Tap **Route It** — both edges reduce by the routed amount atomically.
 
 ---
 
-## Signing in
+## Team
 
-EDA uses email/password or Google sign-in. On first launch you'll set a display name and add your bank account details (CBE, Telebirr, Zemen, etc.) so people know how to pay you back.
+| Name | Role |
+|------|------|
+| **Binyamin** | UI/UX design, Supabase integration, frontend |
+| **Biruk (Brook)** | Architecture, backend logic, features |
+| **Henock** | Features and testing |
 
 ---
 
-## Privacy
+## License
 
-All data lives in your Supabase project. Only users you share groups or transactions with can see your balance information. Notification content stays on-device unless you enable push.
+MIT
