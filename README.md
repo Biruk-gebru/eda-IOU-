@@ -1,6 +1,6 @@
 # EDA — Split expenses, track debts, get paid back.
 
-EDA is a mobile app that makes it easy to track who owes whom in your friend group, dorm, or household. Create shared expenses, request payments, and keep everyone's balances up to date — all in Ethiopian Birr.
+EDA is a mobile app that makes it easy to track who owes whom in your friend group, dorm, or household. Create shared expenses, request payments, and settle debts automatically — all in Ethiopian Birr.
 
 <p align="center">
   <a href="https://github.com/Biruk-gebru/eda-IOU-/releases/latest">
@@ -29,34 +29,49 @@ EDA is a mobile app that makes it easy to track who owes whom in your friend gro
 ## What you can do
 
 ### Home
-See your overall balance at a glance — how much you owe and how much others owe you this month. From here you can start a new expense, request payment from someone who owes you, or scan a QR receipt.
+See your overall balance at a glance — how much you owe and how much others owe you. From here you can start a new expense, request payment from someone who owes you, or jump straight to your balances.
 
 ### Groups
-Create shared expense groups for your dorm, housemates, or any recurring situation. Invite friends by searching their name — they receive an invitation and can accept or decline. Once in a group, any member can log an expense and split it equally or however makes sense.
+Create shared expense groups for your dorm, housemates, or any recurring situation. Invite friends by searching their name — they receive an invitation and can accept or decline. Once in a group, any member can log an expense and split it equally or by any amount.
+
+Each group has a **Settle tab** with a live debt graph: directed arrows show exactly who owes whom and how much. When there's an indirect debt chain — say Abel owes you, and you owe Meron — EDA surfaces a "Route It" option so Abel can pay Meron directly. Two debts clear in one action, and the graph animates the change in real time.
 
 ### Personal
-See a list of every person you have an open balance with. Tap any name to see the full history between you two, request payment, or confirm a payment they've marked as sent.
+See every person you have an open balance with. Tap any name to see the full history between you two, request payment, or confirm a payment they've marked as sent. When marking a payment as sent, EDA scans your SMS inbox for the matching bank transaction and attaches the reference automatically.
 
 ### Stats
-A quick financial overview: total transactions, active balances, a donut chart of what you owe vs. what's owed to you, and a monthly spending bar chart so you can see how things trend over time.
+A quick financial overview: total transactions, active balances, a donut chart of what you owe vs. what's owed to you, and a monthly spending bar chart.
 
 ### Settings
-Switch between light and dark mode, toggle push notifications on or off, and manage your profile and banking info so others know how to pay you back.
+Switch between light and dark mode, toggle push notifications, and manage your profile and banking info so others know how to pay you back. Bank account numbers are copyable with one tap.
 
 ---
 
-## How a typical flow works
+## How typical flows work
 
+### Splitting an expense
 1. **You pay for dinner** → tap "New IOU", add the people at the table, enter the total, split equally. Everyone gets notified.
-2. **Your friend marks it paid** → they open Personal, find your name, enter the amount they sent, and submit.
+2. **Your friend marks it paid** → they open Personal, find your name, select the amount they sent, and submit. EDA finds the matching Telebirr or CBE SMS and attaches the reference.
 3. **You confirm** → you get a notification, open the request, tap Confirm. The balance updates instantly.
 4. **Balance hits zero** → the person disappears from your list automatically.
+
+### Routing a debt through the group
+1. Abel owes you 80 ETB. You owe Meron 120 ETB.
+2. Open the group's Settle tab — the debt graph shows the chain.
+3. Tap "Route It" → confirm the amount → EDA calls Abel's side and Meron's side simultaneously. Both edges reduce by the routed amount.
+4. No money moves through you. No manual transfers needed.
+
+---
+
+## SMS verification
+
+When marking a payment as sent, EDA searches your SMS inbox for a transaction from the same bank at roughly the time you sent it. You pick the send time from a date picker (±12 h window) so a payment sent yesterday still matches. Each bank reference can only be used once — EDA rejects duplicates automatically.
 
 ---
 
 ## Signing in
 
-EDA uses Google sign-in or email/password. On first launch you'll set a display name and add your bank account details (CBE, Telebirr, Zemen, etc.) so people can pay you back through the right channel.
+EDA uses email/password or Google sign-in. On first launch you'll set a display name and add your bank account details (CBE, Telebirr, Zemen, etc.) so people know how to pay you back.
 
 ---
 
