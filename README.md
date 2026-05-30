@@ -129,7 +129,7 @@ flutter run
 | Name | Role |
 |------|------|
 | **Binyamin** | UI/UX design, Supabase integration, frontend |
-| **Biruk ** | Architecture, backend logic, features |
+| **Biruk** | Architecture, backend logic, features |
 | **Henock** | Features and testing |
 | **Jibril** | backend design |
 
