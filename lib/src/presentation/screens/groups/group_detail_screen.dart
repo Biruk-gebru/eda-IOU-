@@ -1243,6 +1243,9 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
   String? _error;
   final Map<String, String> _nameCache = {};
   SettlementAnim? _pendingAnim;
+  // Stored so _onAnimComplete can apply the in-memory debt update atomically.
+  List<dynamic>? _routedChain;
+  double? _routedAmount;
   final _scrollCtrl = ScrollController();
 
   @override
@@ -1572,9 +1575,10 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
             amount: routedAmount,
           );
 
-      // Update _debts in memory so the graph is correct the moment the
-      // animation ends — no loading spinner needed.
-      _applyRoutingInMemory(opp['chain'] as List<dynamic>, routedAmount);
+      // Store so _onAnimComplete can apply the debt update in the same
+      // setState as clearing _pendingAnim — zero intermediate render frame.
+      _routedChain = opp['chain'] as List<dynamic>;
+      _routedAmount = routedAmount;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1602,12 +1606,11 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
     }
   }
 
-  // Reduce chain edges in _debts locally so the graph is already correct
-  // when the animation ends — no spinner, no flash.
-  void _applyRoutingInMemory(List<dynamic> chain, double amount) {
-    final updated = _debts
-        .map((d) => Map<String, dynamic>.from(d))
-        .toList();
+  // Compute new _debts list after routing without mutating state yet.
+  List<Map<String, dynamic>> _computeRoutedDebts(
+      List<dynamic> chain, double amount) {
+    final updated =
+        _debts.map((d) => Map<String, dynamic>.from(d)).toList();
     for (final edge in chain) {
       final m = edge as Map;
       final debtorId = m['debtor_id'] as String;
@@ -1624,15 +1627,26 @@ class _SettleTabState extends ConsumerState<_SettleTab> {
         }
       }
     }
-    if (mounted) setState(() => _debts = updated);
+    return updated;
   }
 
   // Called by DebtGraph when the animation finishes.
-  // _debts is already correct from _applyRoutingInMemory, so just clear the
-  // animation and do a silent background refresh to confirm DB state.
+  // Clear the animation AND update _debts in one setState so there is no
+  // intermediate render between the animation's last frame and the new graph.
   void _onAnimComplete() {
     if (!mounted) return;
-    setState(() => _pendingAnim = null);
+    final chain = _routedChain;
+    final amount = _routedAmount;
+    final newDebts =
+        (chain != null && amount != null)
+            ? _computeRoutedDebts(chain, amount)
+            : null;
+    setState(() {
+      _pendingAnim = null;
+      _routedChain = null;
+      _routedAmount = null;
+      if (newDebts != null) _debts = newDebts;
+    });
     _silentRefresh();
   }
 

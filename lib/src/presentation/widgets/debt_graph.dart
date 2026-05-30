@@ -73,6 +73,9 @@ class _DebtGraphState extends State<DebtGraph>
   @override
   void initState() {
     super.initState();
+    // addStatusListener is reliable across tab/visibility changes.
+    // TickerFuture.then() silently drops in IndexedStack+Visibility.maintain.
+    _ctrl.addStatusListener(_onCtrlStatus);
     if (widget.pending != null) _start(widget.pending!);
   }
 
@@ -84,17 +87,17 @@ class _DebtGraphState extends State<DebtGraph>
     }
   }
 
+  void _onCtrlStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed && mounted) {
+      setState(() => _running = null);
+      widget.onAnimationComplete?.call();
+    }
+  }
+
   void _start(SettlementAnim anim) {
-    // Set directly — AnimatedBuilder will pick it up on the next tick.
     _running = anim;
-    _ctrl
-      ..reset()
-      ..forward().then((_) {
-        if (mounted) {
-          setState(() => _running = null);
-          widget.onAnimationComplete?.call();
-        }
-      });
+    _ctrl.reset();
+    _ctrl.forward();
   }
 
   @override
