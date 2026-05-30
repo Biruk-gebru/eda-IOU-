@@ -139,7 +139,7 @@ class SettlementRepository {
   ///   1-hop  C→Me→B : [{C,Me}, {Me,B}]
   ///   2-hop D→C→Me→B: [{D,C}, {C,Me}, {Me,B}]
   Future<void> applyDebtRoutingChain({
-    required List<Map<String, String>> chain,
+    required List<Map<String, dynamic>> chain,
     required double amount,
   }) async {
     await _client.rpc('apply_debt_routing_chain', params: {
