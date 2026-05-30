@@ -13,6 +13,18 @@ EDA is a Flutter-based mobile app for tracking shared expenses and settling debt
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/home.png" width="18%" alt="Home" />
+  <img src="screenshots/groups.png" width="18%" alt="Groups" />
+  <img src="screenshots/personal.png" width="18%" alt="Personal" />
+  <img src="screenshots/stats.png" width="18%" alt="Stats" />
+  <img src="screenshots/settings.png" width="18%" alt="Settings" />
+</p>
+
+---
+
 ## Features
 
 ### Expense splitting
