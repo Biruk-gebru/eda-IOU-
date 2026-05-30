@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../domain/entities/settlement_request.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/settlement_providers.dart';
+import '../../widgets/settlement_flow_animation.dart';
 
 class SettlementScreen extends ConsumerStatefulWidget {
   const SettlementScreen({super.key});
@@ -49,7 +50,7 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
     final userId = ref.watch(supabaseClientProvider).auth.currentUser?.id;
 
     return Scaffold(
-      backgroundColor: colors.background, // Paper
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -98,7 +99,8 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
                     children: [
                       Icon(FIcons.circleAlert, size: 40, color: colors.destructive),
                       const SizedBox(height: 16),
-                      Text('Failed to load settlements', style: typo.sm.copyWith(color: colors.destructive)),
+                      Text('Failed to load settlements',
+                          style: typo.sm.copyWith(color: colors.destructive)),
                     ],
                   ),
                 ),
@@ -108,37 +110,53 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(FIcons.arrowRightLeft, size: 48, color: colors.mutedForeground),
+                          Icon(FIcons.arrowRightLeft,
+                              size: 48, color: colors.mutedForeground),
                           const SizedBox(height: 16),
-                          Text('No settlement requests yet', style: GoogleFonts.inter(color: colors.mutedForeground)),
+                          Text('No settlement requests yet',
+                              style: GoogleFonts.inter(
+                                  color: colors.mutedForeground)),
+                          const SizedBox(height: 8),
+                          Text('Open a group to start a settlement route',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: colors.mutedForeground)),
                         ],
                       ),
                     );
                   }
 
-                  final pending = settlements.where((s) => s.status == 'pending').toList();
-                  final approved = settlements.where((s) => s.status == 'approved').toList();
-                  final completed = settlements.where((s) => s.status == 'completed' || s.status == 'rejected').toList();
+                  final pending =
+                      settlements.where((s) => s.status == 'pending').toList();
+                  final approved =
+                      settlements.where((s) => s.status == 'approved').toList();
+                  final completed = settlements
+                      .where((s) =>
+                          s.status == 'completed' || s.status == 'rejected')
+                      .toList();
 
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(22, 24, 22, 40),
+                    padding: const EdgeInsets.fromLTRB(22, 24, 22, 100),
                     children: [
                       if (pending.isNotEmpty) ...[
                         _sectionLabel('PENDING', colors),
                         const SizedBox(height: 12),
-                        ...pending.map((s) => _settlementTile(s, userId, colors, typo)),
+                        ...pending
+                            .map((s) => _settlementTile(s, userId, colors, typo)),
                         const SizedBox(height: 32),
                       ],
                       if (approved.isNotEmpty) ...[
                         _sectionLabel('APPROVED', colors),
                         const SizedBox(height: 12),
-                        ...approved.map((s) => _settlementTile(s, userId, colors, typo)),
+                        ...approved
+                            .map((s) => _settlementTile(s, userId, colors, typo)),
                         const SizedBox(height: 32),
                       ],
                       if (completed.isNotEmpty) ...[
                         _sectionLabel('COMPLETED / REJECTED', colors),
                         const SizedBox(height: 12),
-                        ...completed.map((s) => _settlementTile(s, userId, colors, typo)),
+                        ...completed
+                            .map((s) => _settlementTile(s, userId, colors, typo)),
                       ],
                     ],
                   );
@@ -163,17 +181,11 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
     );
   }
 
-  Color _badgeColor(String status, FColors colors) {
-    switch (status) {
-      case 'approved':
-      case 'completed':
-        return colors.primary; // Or a success color
-      case 'rejected':
-        return colors.destructive;
-      default:
-        return colors.muted;
-    }
-  }
+  Color _badgeColor(String status, FColors colors) => switch (status) {
+        'approved' || 'completed' => colors.primary,
+        'rejected' => colors.destructive,
+        _ => colors.muted,
+      };
 
   Widget _settlementTile(
     SettlementRequest settlement,
@@ -191,10 +203,7 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
         color: colors.card,
         border: Border.all(color: colors.foreground, width: 1.5),
         boxShadow: [
-          BoxShadow(
-            color: colors.foreground,
-            offset: const Offset(3, 3),
-          ),
+          BoxShadow(color: colors.foreground, offset: const Offset(3, 3)),
         ],
       ),
       child: Column(
@@ -237,11 +246,14 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _buildInfoRow(FIcons.user, 'Payer', _resolveName(settlement.payerId), colors, typo),
+                _buildInfoRow(FIcons.user, 'Payer',
+                    _resolveName(settlement.payerId), colors, typo),
                 const SizedBox(height: 8),
-                _buildInfoRow(FIcons.userCheck, 'Receiver', _resolveName(settlement.receiverId), colors, typo),
+                _buildInfoRow(FIcons.userCheck, 'Receiver',
+                    _resolveName(settlement.receiverId), colors, typo),
                 const SizedBox(height: 8),
-                _buildInfoRow(FIcons.arrowRightLeft, 'Initiated by', _resolveName(settlement.initiatorId), colors, typo),
+                _buildInfoRow(FIcons.arrowRightLeft, 'Initiated by',
+                    _resolveName(settlement.initiatorId), colors, typo),
               ],
             ),
           ),
@@ -269,28 +281,32 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
                         color: colors.destructive,
-                        border: Border(right: BorderSide(color: colors.foreground, width: 1.5)),
+                        border: Border(
+                            right: BorderSide(
+                                color: colors.foreground, width: 1.5)),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         'Reject',
-                        style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
+                        style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground),
                       ),
                     ),
                   ),
                 ),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => _approveSettlement(settlement.id),
+                    onTap: () => _approveSettlement(settlement),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                      ),
+                      decoration: BoxDecoration(color: colors.primary),
                       alignment: Alignment.center,
                       child: Text(
                         'Approve',
-                        style: typo.sm.copyWith(fontWeight: FontWeight.w600, color: colors.foreground),
+                        style: typo.sm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.foreground),
                       ),
                     ),
                   ),
@@ -303,7 +319,13 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, Future<String> futureValue, FColors colors, FTypography typo) {
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    Future<String> futureValue,
+    FColors colors,
+    FTypography typo,
+  ) {
     return Row(
       children: [
         Icon(icon, size: 16, color: colors.foreground),
@@ -317,8 +339,9 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
           child: FutureBuilder<String>(
             future: futureValue,
             builder: (_, s) => Text(
-              s.data ?? "...",
-              style: typo.sm.copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
+              s.data ?? '...',
+              style: typo.sm
+                  .copyWith(fontWeight: FontWeight.w500, color: colors.foreground),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -328,13 +351,34 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
     );
   }
 
-  Future<void> _approveSettlement(String id) async {
+  Future<void> _approveSettlement(SettlementRequest settlement) async {
+    // Resolve names before showing the animation.
+    final payerName = await _resolveName(settlement.payerId);
+    final receiverName = await _resolveName(settlement.receiverId);
+    final initiatorName = await _resolveName(settlement.initiatorId);
+
+    if (!mounted) return;
+
+    // Show the animated visualization while the approval runs in parallel.
+    final approvalFuture =
+        ref.read(settlementRepositoryProvider).approveSettlement(settlement.id);
+
+    await Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => SettlementFlowAnimation(
+          payerName: payerName,
+          receiverName: receiverName,
+          initiatorName: initiatorName,
+          amount: settlement.amount,
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+    );
+
     try {
-      await ref.read(settlementRepositoryProvider).approveSettlement(id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Settlement approved')));
-      }
+      await approvalFuture;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -358,3 +402,4 @@ class _SettlementScreenState extends ConsumerState<SettlementScreen> {
     }
   }
 }
+
