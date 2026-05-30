@@ -22,6 +22,7 @@ class LocalNotificationService {
   static final navigatorKey = GlobalKey<NavigatorState>();
   static const _storage = FlutterSecureStorage();
   static const _prefKey = 'push_notifications_enabled';
+  static const _permKey = 'push_permission_granted';
 
   static const _channelId = 'eda_main';
   static const _channelName = 'EDA';
@@ -50,15 +51,24 @@ class LocalNotificationService {
     );
   }
 
-  /// Request OS-level permission. Call once after the user has logged in.
+  /// Request OS-level permission. Only ever shows the system dialog once;
+  /// subsequent calls return immediately if permission was already granted.
   static Future<void> requestPermission() async {
+    final cached = await _storage.read(key: _permKey);
+    if (cached == 'true') return;
+
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    await android?.requestNotificationsPermission();
+    final androidGranted = await android?.requestNotificationsPermission();
 
     final ios = _plugin.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
-    await ios?.requestPermissions(alert: true, badge: true, sound: true);
+    final iosGranted =
+        await ios?.requestPermissions(alert: true, badge: true, sound: true);
+
+    if (androidGranted == true || iosGranted == true) {
+      await _storage.write(key: _permKey, value: 'true');
+    }
   }
 
   /// Show a system notification for [n]. No-op if the user has disabled push.

@@ -11,6 +11,7 @@ import '../../providers/transaction_providers.dart';
 import '../../providers/user_providers.dart';
 import '../notifications/notification_screen.dart';
 import '../personal/person_detail_screen.dart';
+import '../personal/personal_screen.dart';
 import '../transactions/create_transaction_screen.dart';
 import '../transactions/transaction_detail_screen.dart';
 import '../../widgets/neo_button.dart';
@@ -163,7 +164,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       icon: Icons.add,
                       label: 'New IOU',
                       sub: 'Split or charge',
-                      fill: colors.primary, // Accent
+                      fill: colors.primary,
                       onTap: () =>
                           _open(context, const CreateTransactionScreen()),
                     ),
@@ -179,11 +180,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(width: 10),
                     _actionTile(
                       colors: colors,
-                      icon: Icons.qr_code_scanner,
-                      label: 'Scan',
-                      sub: 'QR receipt',
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Balances',
+                      sub: 'Peer debts',
                       fill: colors.card,
-                      onTap: () {}, // Not implemented
+                      onTap: () => _open(context, const PersonalScreen()),
                     ),
                   ],
                 ),

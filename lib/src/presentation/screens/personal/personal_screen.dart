@@ -192,7 +192,7 @@ class _PersonalScreenState extends ConsumerState<PersonalScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
 
                 // ── Pending approvals ─────────────────────────────────────────────
                 Consumer(
