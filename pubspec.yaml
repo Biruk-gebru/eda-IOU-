@@ -2,7 +2,7 @@ name: eda
 description: "IoU - Track who owes whom with approvals and payments"
 publish_to: 'none'
 
-version: 1.2.0+3
+version: 1.2.1+4
 
 environment:
   sdk: ^3.8.1
