@@ -374,31 +374,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'NET BALANCE · APRIL',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.6,
-                            color: const Color(0xFFA8A294),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'NET BALANCE · APRIL',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.6,
+                              color: const Color(0xFFA8A294),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _fmtSigned(net),
-                          style: typo.xl4.copyWith(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w600,
-                            color: colors.background, // Paper
-                            height: 1.0,
-                            letterSpacing: -0.88,
+                          const SizedBox(height: 10),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _fmtSigned(net),
+                              maxLines: 1,
+                              style: typo.xl4.copyWith(
+                                fontSize: 44,
+                                fontWeight: FontWeight.w600,
+                                color: colors.background, // Paper
+                                height: 1.0,
+                                letterSpacing: -0.88,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 12),
                     // Sparkline
                     Consumer(builder: (context, ref, child) {
                       final txAsync = ref.watch(transactionListProvider);
