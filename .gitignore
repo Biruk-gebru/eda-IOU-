@@ -29,7 +29,6 @@ migrate_working_dir/
 # -------------------------
 # VS Code
 # (Uncomment if you don't want to commit your editor settings)
-#.vscode/
 
 # -------------------------
 # Flutter / Dart / Pub
@@ -118,3 +117,7 @@ design/
 windows/
 linux/
 macos/
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
